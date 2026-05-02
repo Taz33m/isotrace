@@ -11,12 +11,16 @@ interface CheckResult {
   count: number;
 }
 
+const CI_WORKFLOW_PATH = ".github/workflows/ci.yml";
+const EXPECTED_CI_RUN_COMMANDS = ["npm ci", "npm run check", "npm run smoke:ui", "npm audit --audit-level=moderate"];
+
 function main(): void {
   const results: CheckResult[] = [];
   results.push(validateFixtures());
   results.push(validateExamples());
   results.push(validateFixtureReports());
   results.push(validateCliReports());
+  results.push(validateCiWorkflow());
 
   console.log("IsoTrace artifact check passed");
   for (const result of results) {
@@ -71,6 +75,28 @@ function validateCliReports(): CheckResult {
   return { label: "CLI JSON reports validated", count: 2 };
 }
 
+function validateCiWorkflow(): CheckResult {
+  const text = readFileSync(CI_WORKFLOW_PATH, "utf8");
+  expectContains(text, "name: CI", "CI workflow name");
+  expectContains(text, "pull_request:", "CI pull_request trigger");
+  expectContains(text, "branches:\n      - main", "CI main-branch push trigger");
+  expectContains(text, "uses: actions/checkout@v4", "CI checkout action");
+  expectContains(text, "uses: actions/setup-node@v4", "CI setup-node action");
+  expectContains(text, "node-version: 24", "CI Node version");
+  expectContains(text, "cache: npm", "CI npm cache");
+
+  const runCommands = text
+    .split(/\r?\n/)
+    .map((line) => line.match(/^\s+run:\s+(.+)$/)?.[1]?.trim())
+    .filter((command): command is string => command !== undefined);
+  if (JSON.stringify(runCommands) !== JSON.stringify(EXPECTED_CI_RUN_COMMANDS)) {
+    throw new Error(
+      `${CI_WORKFLOW_PATH} run commands drifted; expected ${EXPECTED_CI_RUN_COMMANDS.join(" -> ")}, got ${runCommands.join(" -> ")}`,
+    );
+  }
+  return { label: "CI workflow checked", count: 1 };
+}
+
 function expectInvalidHistoryExample(path: string, expectedMessage: string): void {
   try {
     parseHistoryJson(readFileSync(path, "utf8"));
@@ -83,6 +109,12 @@ function expectInvalidHistoryExample(path: string, expectedMessage: string): voi
 
 function jsonFiles(directory: string): string[] {
   return readdirSync(directory).filter((file) => file.endsWith(".json")).sort();
+}
+
+function expectContains(text: string, needle: string, label: string): void {
+  if (!text.includes(needle)) {
+    throw new Error(`${CI_WORKFLOW_PATH} missing ${label}: ${needle}`);
+  }
 }
 
 function runNode(args: string[]): string {

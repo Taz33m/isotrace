@@ -135,5 +135,6 @@ describe("portable artifacts", () => {
     });
     expect(output).toContain("IsoTrace artifact check passed");
     expect(output).toContain("CLI JSON reports validated: 2");
+    expect(output).toContain("CI workflow checked: 1");
   });
 });
