@@ -337,6 +337,7 @@ h1 {
   padding: 0 0 10px;
 }
 
+.verdictPanel,
 .historyPanel {
   grid-column: 1 / 2;
 }
@@ -355,6 +356,132 @@ h1 {
   font-size: 0.92rem;
   line-height: 1.45;
   margin-bottom: 12px;
+}
+
+.diagnosis {
+  display: grid;
+  gap: 12px;
+}
+
+.diagnosisGrid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.statusPill {
+  border: 1px solid #d8e0ea;
+  border-radius: 8px;
+  display: grid;
+  gap: 3px;
+  padding: 9px 10px;
+}
+
+.statusPill span,
+.diagnosisAnomaly span,
+.diagnosisMeta span {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.statusPill strong {
+  color: #111827;
+  font-size: 0.92rem;
+}
+
+.statusPill.pass {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+
+.statusPill.fail {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.statusPill.not-evaluated {
+  background: #f8fafc;
+}
+
+.diagnosisAnomaly {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #e5eaf1;
+  border-radius: 8px;
+  display: grid;
+  gap: 4px;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  padding: 10px 12px;
+}
+
+.diagnosisAnomaly strong {
+  color: #111827;
+}
+
+.diagnosisAnomaly code {
+  background: #e0f2fe;
+  border-radius: 5px;
+  color: #075985;
+  font-size: 0.72rem;
+  font-weight: 900;
+  padding: 3px 6px;
+}
+
+.diagnosis p,
+.diagnosisMeta strong,
+.diagnosisLimitations {
+  color: #334155;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.diagnosisMeta {
+  display: grid;
+  gap: 4px;
+}
+
+.proofEdgeList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.proofEdgeList button {
+  align-items: center;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 7px;
+  color: #9a3412;
+  display: inline-flex;
+  gap: 6px;
+  min-height: 32px;
+  padding: 5px 8px;
+}
+
+.proofEdgeList button.selected {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #ffffff;
+}
+
+.proofEdgeList code {
+  color: inherit;
+  font-weight: 900;
+}
+
+.proofEdgeList span {
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.diagnosisLimitations {
+  border-top: 1px solid #e5eaf1;
+  display: grid;
+  gap: 5px;
+  padding-top: 10px;
 }
 
 .historyTable,
@@ -658,6 +785,7 @@ h1 {
   }
 
   .graphPanel,
+  .verdictPanel,
   .historyPanel,
   .proofPanel,
   .edgesPanel {
@@ -680,6 +808,11 @@ h1 {
 
   .historyRow,
   .edgeRow {
+    grid-template-columns: 1fr;
+  }
+
+  .diagnosisGrid,
+  .diagnosisAnomaly {
     grid-template-columns: 1fr;
   }
 

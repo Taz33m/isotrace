@@ -28,10 +28,13 @@ async function main(): Promise<void> {
 function runCliProofSmoke(): void {
   const demo = runIsoTraceCli(["fixtures/write_skew_doctors.json"]);
   assertIncludes(demo, "Result: VIOLATION", "write-skew demo reports a violation");
+  assertIncludes(demo, "Anomaly: Write skew [write-skew]", "write-skew demo reports semantic anomaly label");
+  assertIncludes(demo, "Implicated transactions: T1, T2", "write-skew demo reports implicated transactions");
   assertIncludes(demo, "Version order uses commit timestamps", "write-skew demo explains version-order mode");
   assertIncludes(demo, "Serializable order is impossible", "write-skew demo prints a cycle witness");
 
   const strict = runIsoTraceCli(["fixtures/stale_read_strict.json", "--strict"]);
+  assertIncludes(strict, "Anomaly: Strict stale read [strict-stale-read]", "strict demo reports stale-read anomaly label");
   assertIncludes(strict, "Strict serializability is violated", "strict demo prints a strict cycle witness");
   assertIncludes(strict, "[rt/realtime]", "strict demo includes realtime edge proof");
 
@@ -201,6 +204,8 @@ async function verifyWorkbench(page: Page, url: string): Promise<void> {
 
   await page.getByTestId("scenario-write_skew_doctors").click();
   await page.getByRole("heading", { name: "write_skew_doctors" }).waitFor({ state: "visible" });
+  await page.getByTestId("verdict-panel").filter({ hasText: "Write skew" }).waitFor({ state: "visible" });
+  await page.getByTestId("verdict-panel").filter({ hasText: "T1, T2" }).waitFor({ state: "visible" });
   await page
     .locator("[data-testid='cycle-card']")
     .filter({ hasText: "Serializable order is impossible" })

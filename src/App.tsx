@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { analyzeHistory, edgeKindLabel } from "./core/analyzer";
 import { parseHistoryJson } from "./core/artifacts";
 import { formatJsonValue } from "./core/format";
-import type { AnalysisResult, DependencyEdge, EdgeKind, GraphNode, History, TxOp } from "./core/types";
+import type { AnalysisResult, DependencyEdge, EdgeKind, GraphNode, History, IsolationVerdict, TxOp } from "./core/types";
 import { fixtureCatalog } from "./fixtures";
 
 const edgeColors: Record<EdgeKind, string> = {
@@ -50,8 +50,8 @@ export default function App() {
         <div className={`verdict ${result.ok ? "verdictOk" : "verdictBad"}`}>
           {result.ok ? <CheckCircle2 size={22} /> : <AlertTriangle size={22} />}
           <div>
-            <span>{result.ok ? "No cycle found" : "Violation found"}</span>
-            <strong>{result.cycles.length} cycle(s), {result.edges.length} edge(s)</strong>
+            <span>{result.verdict.anomaly.title}</span>
+            <strong>{result.verdict.summary}</strong>
           </div>
         </div>
       </header>
@@ -148,6 +148,10 @@ export default function App() {
         </aside>
 
         <section className="mainGrid">
+          <Panel title="Isolation Diagnosis" icon={result.ok ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />} className="verdictPanel">
+            <VerdictPanel onSelectEdge={setSelectedEdgeId} selectedEdgeId={selectedEdgeId} verdict={result.verdict} />
+          </Panel>
+
           <Panel title={selected.history.name} icon={<Activity size={18} />} className="historyPanel">
             <p className="scenarioDescription">{selected.history.description}</p>
             <HistoryTable history={selected.history} />
@@ -188,7 +192,7 @@ export default function App() {
 function expectedVerdict(history: History): string {
   try {
     const result = analyzeHistory(history);
-    return result.ok ? "passes" : "fails";
+    return result.verdict.anomaly.label === "valid-serial-history" ? "passes" : result.verdict.anomaly.title;
   } catch {
     return `${history.transactions.length} tx`;
   }
@@ -233,6 +237,75 @@ function Panel({
       {children}
     </section>
   );
+}
+
+function VerdictPanel({
+  verdict,
+  selectedEdgeId,
+  onSelectEdge,
+}: {
+  verdict: IsolationVerdict;
+  selectedEdgeId: string | null;
+  onSelectEdge: (edgeId: string) => void;
+}) {
+  return (
+    <div className="diagnosis" data-testid="verdict-panel">
+      <div className="diagnosisGrid">
+        <StatusPill label="Serializable" status={verdict.serializable.status} />
+        <StatusPill label="Strict" status={verdict.strictSerializable.status} />
+      </div>
+      <div className="diagnosisAnomaly">
+        <span>Anomaly</span>
+        <strong>{verdict.anomaly.title}</strong>
+        <code>{verdict.anomaly.label}</code>
+      </div>
+      <p>{verdict.explanation}</p>
+      <div className="diagnosisMeta">
+        <span>Implicated</span>
+        <strong>{verdict.implicatedTransactions.length > 0 ? verdict.implicatedTransactions.join(", ") : "none"}</strong>
+      </div>
+      <div className="diagnosisMeta">
+        <span>Inspect first</span>
+        <strong>{verdict.inspectFirst}</strong>
+      </div>
+      {verdict.evidence.edgeIds.length > 0 ? (
+        <div className="proofEdgeList" aria-label="Verdict proof edge sequence">
+          {verdict.evidence.edgeIds.map((edgeId, index) => (
+            <button
+              className={selectedEdgeId === edgeId ? "selected" : ""}
+              data-testid={`verdict-edge-${edgeId}`}
+              key={edgeId}
+              onClick={() => onSelectEdge(edgeId)}
+              type="button"
+            >
+              <code>{edgeId}</code>
+              <span>{verdict.evidence.edgeKinds[index]}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <div className="diagnosisLimitations">
+        {verdict.limitations.map((limitation) => (
+          <span key={limitation}>{limitation}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function StatusPill({ label, status }: { label: string; status: IsolationVerdict["serializable"]["status"] }) {
+  return (
+    <div className={`statusPill ${status}`}>
+      <span>{label}</span>
+      <strong>{statusLabel(status)}</strong>
+    </div>
+  );
+}
+
+function statusLabel(status: IsolationVerdict["serializable"]["status"]): string {
+  if (status === "pass") return "Pass";
+  if (status === "fail") return "Fail";
+  return "Not evaluated";
 }
 
 function HistoryTable({ history }: { history: History }) {

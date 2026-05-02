@@ -65,10 +65,48 @@ export interface CycleWitness {
   transactions: string[];
 }
 
+export type IsolationCheckStatus = "pass" | "fail" | "not-evaluated";
+
+export type AnomalyClass =
+  | "write-skew"
+  | "strict-stale-read"
+  | "dependency-cycle"
+  | "valid-serial-history"
+  | "aborted-write-ignored";
+
+export interface IsolationCheckVerdict {
+  status: IsolationCheckStatus;
+  reason: string;
+}
+
+export interface IsolationVerdictEvidence {
+  kind: "cycle" | "edge-pattern" | "validation-note" | "none";
+  cycleId?: string;
+  edgeIds: string[];
+  edgeKinds: EdgeKind[];
+  pattern: string;
+}
+
+export interface IsolationVerdict {
+  serializable: IsolationCheckVerdict;
+  strictSerializable: IsolationCheckVerdict;
+  anomaly: {
+    label: AnomalyClass;
+    title: string;
+  };
+  implicatedTransactions: string[];
+  evidence: IsolationVerdictEvidence;
+  summary: string;
+  explanation: string;
+  inspectFirst: string;
+  limitations: string[];
+}
+
 export interface AnalysisResult {
   history: History;
   mode: IsolationMode;
   ok: boolean;
+  verdict: IsolationVerdict;
   nodes: GraphNode[];
   edges: DependencyEdge[];
   cycles: CycleWitness[];

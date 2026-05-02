@@ -1,6 +1,6 @@
 # IsoTrace
 
-IsoTrace is a local transaction-history analyzer for explicit key-value histories. It builds a dependency graph and explains serializability or strict-serializability failures as concrete cycle witnesses.
+IsoTrace is a local transaction-history analyzer for explicit key-value histories. It builds a dependency graph and explains serializability or strict-serializability failures as semantic verdicts with concrete cycle witnesses.
 
 ## Technical Seam
 
@@ -18,6 +18,8 @@ The analyzer has to reconstruct several edge classes without inventing facts:
 - `rt`: strict-serializability realtime order
 
 A cycle in these edges is the proof. The tool reports a representative cycle and the concrete read/write facts that created each edge.
+
+IsoTrace also emits a conservative semantic verdict: serializable pass/fail, strict-serializable pass/fail/not-evaluated, anomaly label, implicated transactions, proof edge sequence, and bounded limitations. Supported labels are intentionally narrow: write skew, strict stale read, generic dependency cycle, valid serial history, and aborted write ignored. This is not full Elle compatibility or complete Adya anomaly coverage.
 
 ## Demo
 

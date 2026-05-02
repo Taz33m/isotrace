@@ -125,6 +125,7 @@
         "history",
         "mode",
         "ok",
+        "verdict",
         "nodes",
         "edges",
         "cycles",
@@ -141,6 +142,9 @@
         },
         "ok": {
           "type": "boolean"
+        },
+        "verdict": {
+          "$ref": "#/$defs/verdict"
         },
         "nodes": {
           "type": "array",
@@ -194,6 +198,113 @@
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "verdict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "serializable",
+        "strictSerializable",
+        "anomaly",
+        "implicatedTransactions",
+        "evidence",
+        "summary",
+        "explanation",
+        "inspectFirst",
+        "limitations"
+      ],
+      "properties": {
+        "serializable": {
+          "$ref": "#/$defs/checkVerdict"
+        },
+        "strictSerializable": {
+          "$ref": "#/$defs/checkVerdict"
+        },
+        "anomaly": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["label", "title"],
+          "properties": {
+            "label": {
+              "enum": ["write-skew", "strict-stale-read", "dependency-cycle", "valid-serial-history", "aborted-write-ignored"]
+            },
+            "title": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "implicatedTransactions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "evidence": {
+          "$ref": "#/$defs/verdictEvidence"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "explanation": {
+          "type": "string",
+          "minLength": 1
+        },
+        "inspectFirst": {
+          "type": "string",
+          "minLength": 1
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "checkVerdict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reason"],
+      "properties": {
+        "status": {
+          "enum": ["pass", "fail", "not-evaluated"]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "verdictEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "edgeIds", "edgeKinds", "pattern"],
+      "properties": {
+        "kind": {
+          "enum": ["cycle", "edge-pattern", "validation-note", "none"]
+        },
+        "cycleId": {
+          "type": "string"
+        },
+        "edgeIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "edgeKinds": {
+          "type": "array",
+          "items": {
+            "enum": ["ww", "wr", "rw", "rt"]
+          }
+        },
+        "pattern": {
+          "type": "string",
+          "minLength": 1
         }
       }
     },

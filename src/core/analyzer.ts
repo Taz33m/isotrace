@@ -13,6 +13,7 @@ import type {
 import { formatJsonValue } from "./format";
 import { edgeSignature, findCycleInComponent, tarjanScc } from "./graph";
 import { HistoryValidationError, normalizeHistory } from "./validate";
+import { buildIsolationVerdict } from "./verdict";
 
 export interface AnalyzeOptions {
   strict?: boolean;
@@ -41,16 +42,25 @@ export function analyzeHistory(history: History, options: AnalyzeOptions = {}): 
   const versions = buildVersionIndex(normalized.committed, normalized.order);
   const edges = buildEdges(normalized.committed, versions, mode);
   const cycles = findCycles(nodes.map((node) => node.id), edges);
+  const serialCycles = findCycles(nodes.map((node) => node.id), edges.filter((edge) => edge.kind !== "rt"));
   const kindCounts = countKinds(edges);
+  const ignoredTransactions = normalized.ignored.map((tx) => tx.id);
+  const verdict = buildIsolationVerdict({
+    mode,
+    cycles,
+    serialCycles,
+    ignoredTransactions,
+  });
 
   return {
     history,
     mode,
     ok: cycles.length === 0,
+    verdict,
     nodes,
     edges,
     cycles,
-    ignoredTransactions: normalized.ignored.map((tx) => tx.id),
+    ignoredTransactions,
     kindCounts,
     validationNotes: normalized.notes,
   };
