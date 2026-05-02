@@ -54,6 +54,11 @@ function runCliProofSmoke(): void {
     throw new Error("JSON CLI smoke expected at least one cycle witness");
   }
 
+  const catalog = runIsoTraceCli(["--fixtures"]);
+  assertIncludes(catalog, "IsoTrace fixture catalog", "fixture catalog prints a heading");
+  assertIncludes(catalog, "fixtures/write_skew_doctors.json", "fixture catalog lists the write-skew fixture");
+  assertIncludes(catalog, "verdict: write-skew", "fixture catalog exposes expected verdict labels");
+
   console.log("smoke:ui CLI proof checks passed");
 }
 

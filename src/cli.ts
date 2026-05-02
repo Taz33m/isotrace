@@ -7,11 +7,13 @@ import { makeAnalysisReport } from "./core/report";
 import type { History } from "./core/types";
 import type { NormalizedHistory } from "./core/validate";
 import { HistoryValidationError } from "./core/validate";
+import { makeFixtureCatalog } from "./fixtures/manifest";
 
 const MAX_HISTORY_BYTES = 512 * 1024;
 
 interface CliArgs {
-  file: string;
+  command: "analyze" | "fixtures";
+  file?: string;
   strict: boolean;
   json: boolean;
   failOnViolation: boolean;
@@ -24,7 +26,7 @@ function parseArgs(argv: string[]): CliArgs {
     printHelp();
     process.exit(0);
   }
-  const allowedFlags = new Set(["--strict", "--json", "--fail-on-violation", "--validate"]);
+  const allowedFlags = new Set(["--strict", "--json", "--fail-on-violation", "--validate", "--fixtures"]);
   const positional: string[] = [];
   for (const arg of args) {
     if (arg.startsWith("-")) {
@@ -35,10 +37,29 @@ function parseArgs(argv: string[]): CliArgs {
       positional.push(arg);
     }
   }
+  const listFixtures = args.includes("--fixtures");
+  if (listFixtures) {
+    const incompatible = args.filter((arg) => arg.startsWith("-") && arg !== "--fixtures" && arg !== "--json");
+    if (incompatible.length > 0) {
+      throw new HistoryValidationError(`--fixtures only accepts --json, got ${incompatible.join(", ")}`);
+    }
+    if (positional.length !== 0) {
+      throw new HistoryValidationError(`--fixtures does not accept a history file, got ${positional.length}`);
+    }
+    return {
+      command: "fixtures",
+      strict: false,
+      json: args.includes("--json"),
+      failOnViolation: false,
+      validate: false,
+    };
+  }
+
   if (positional.length !== 1) {
     throw new HistoryValidationError(`expected exactly one history file, got ${positional.length}`);
   }
   return {
+    command: "analyze",
     file: positional[0] ?? "",
     strict: args.includes("--strict"),
     json: args.includes("--json"),
@@ -52,14 +73,17 @@ function printHelp(): void {
 
 Usage:
   npm run analyze -- <history.json> [--strict] [--json] [--fail-on-violation] [--validate]
+  npm run analyze -- --fixtures [--json]
 
 Examples:
   npm run demo
   npm run demo:strict
+  npm run analyze -- --fixtures
   npm run analyze -- examples/valid_history.json --validate
   npm run analyze -- fixtures/write_skew_doctors.json --json
 
 Notes:
+  --fixtures lists the checked-in demo histories, expected verdict contracts, and reproduction commands.
   --validate checks schema shape and IsoTrace semantic constraints without running analysis.
   --json prints the full input history in the analysis result.
 `);
@@ -68,13 +92,18 @@ Notes:
 function main(): void {
   try {
     const args = parseArgs(process.argv);
-    const filePath = resolve(process.cwd(), args.file);
+    if (args.command === "fixtures") {
+      printFixtureCatalog(args.json);
+      return;
+    }
+    const file = args.file ?? "";
+    const filePath = resolve(process.cwd(), file);
     const stats = statSync(filePath);
     if (!stats.isFile()) {
-      throw new HistoryValidationError(`${args.file} is not a file`);
+      throw new HistoryValidationError(`${file} is not a file`);
     }
     if (stats.size > MAX_HISTORY_BYTES) {
-      throw new HistoryValidationError(`${args.file} is ${stats.size} bytes; max supported history size is ${MAX_HISTORY_BYTES} bytes`);
+      throw new HistoryValidationError(`${file} is ${stats.size} bytes; max supported history size is ${MAX_HISTORY_BYTES} bytes`);
     }
 
     const inputBytes = readFileSync(filePath);
@@ -118,6 +147,29 @@ function main(): void {
 }
 
 main();
+
+function printFixtureCatalog(json: boolean): void {
+  const catalog = makeFixtureCatalog();
+  if (json) {
+    console.log(JSON.stringify(catalog, null, 2));
+    return;
+  }
+
+  console.log("IsoTrace fixture catalog");
+  console.log(`Fixtures: ${catalog.count}`);
+  for (const fixture of catalog.fixtures) {
+    const implicated = fixture.implicatedTransactions.length > 0 ? fixture.implicatedTransactions.join(", ") : "none";
+    const proofEdges = fixture.proof.edgeKinds.length > 0 ? fixture.proof.edgeKinds.join(" -> ") : "none";
+    console.log(`- ${fixture.historyName}`);
+    console.log(`  path: ${fixture.path}`);
+    console.log(`  command: ${fixture.command}`);
+    console.log(
+      `  verdict: ${fixture.anomaly}; ok=${String(fixture.ok)}; serializable=${fixture.serializable}; strict=${fixture.strictSerializable}`,
+    );
+    console.log(`  implicated: ${implicated}`);
+    console.log(`  proof: ${fixture.proof.evidenceKind}; edgeKinds=${proofEdges}; cycles=${fixture.proof.cycleCount}`);
+  }
+}
 
 function printValidationResult(history: History, normalized: NormalizedHistory, json: boolean): void {
   const payload = {

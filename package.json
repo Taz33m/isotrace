@@ -12,6 +12,7 @@
     "demo": "node --import tsx src/cli.ts fixtures/write_skew_doctors.json",
     "demo:strict": "node --import tsx src/cli.ts fixtures/stale_read_strict.json --strict",
     "analyze": "node --import tsx src/cli.ts",
+    "fixtures": "node --import tsx src/cli.ts --fixtures",
     "artifacts:check": "node --import tsx src/artifacts/check.ts",
     "bench": "node --import tsx src/bench/bench.ts",
     "smoke:ui": "node --import tsx src/smoke/ui-smoke.ts",

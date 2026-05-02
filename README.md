@@ -99,17 +99,19 @@ npm test
 npm run build
 npm run demo
 npm run demo:strict
+npm run fixtures
 npm run bench
 npm run bench -- --json
 npm run smoke:ui
 npm run artifacts:check
+npm run analyze -- --fixtures --json
 npm run analyze -- examples/valid_history.json --validate
 npm run analyze -- fixtures/write_skew_doctors.json --json
 ```
 
 `npm run check` runs typecheck, tests, production build, and the benchmark smoke. The `--json` CLI mode emits a report envelope with schema version, tool version, command, runtime, git state, input byte count, input SHA-256, and the full analysis result. That result includes the full input history, so do not use it for histories containing secrets unless printing those values is acceptable.
 
-`--validate` checks a history file against `schemas/history.schema.json` and IsoTrace's semantic constraints without running analysis. Analyzer JSON reports are shaped by `schemas/report.schema.json`; benchmark JSON reports are shaped by `schemas/benchmark.schema.json`. `npm run artifacts:check` validates checked-in fixtures, portable examples, generated analyzer reports, and CLI JSON reports.
+`--fixtures` lists checked-in demo histories, expected verdict contracts, and reproduction commands. `--validate` checks a history file against `schemas/history.schema.json` and IsoTrace's semantic constraints without running analysis. Analyzer JSON reports are shaped by `schemas/report.schema.json`; benchmark JSON reports are shaped by `schemas/benchmark.schema.json`. `npm run artifacts:check` validates checked-in fixtures, fixture verdict contracts, portable examples, generated analyzer reports, CLI JSON reports, and the CLI fixture catalog.
 
 `npm run smoke:ui` runs CLI proof checks first, then launches a local Vite workbench with Playwright when a headless browser is available. It verifies fixture selection, custom JSON import, custom validation errors, and a cycle witness without using the in-app browser.
 

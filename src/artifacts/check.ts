@@ -4,42 +4,16 @@ import { join } from "node:path";
 import { analyzeHistory } from "../core/analyzer";
 import { parseHistoryJson, validateAnalysisReportArtifact, validateBenchmarkReportArtifact } from "../core/artifacts";
 import { makeAnalysisReport } from "../core/report";
-import type { AnalysisResult, AnomalyClass, EdgeKind, IsolationCheckStatus, IsolationMode, IsolationVerdictEvidence } from "../core/types";
+import type { AnalysisResult } from "../core/types";
 import { HistoryValidationError } from "../core/validate";
+import { makeFixtureCatalog, readFixtureManifest, type FixtureContract, type FixtureExpectation } from "../fixtures/manifest";
 
 interface CheckResult {
   label: string;
   count: number;
 }
 
-interface FixtureManifest {
-  schema: "isotrace.fixture-manifest.v1";
-  fixtures: FixtureContract[];
-}
-
-interface FixtureContract {
-  path: string;
-  reproduce: string;
-  argv: string[];
-  expected: FixtureExpectation;
-}
-
-interface FixtureExpectation {
-  historyName: string;
-  mode: IsolationMode;
-  ok: boolean;
-  anomaly: AnomalyClass;
-  serializable: IsolationCheckStatus;
-  strictSerializable: IsolationCheckStatus;
-  implicatedTransactions: string[];
-  evidenceKind: IsolationVerdictEvidence["kind"];
-  edgeKinds: EdgeKind[];
-  cycleCount: number;
-  kindCounts: Record<EdgeKind, number>;
-}
-
 const CI_WORKFLOW_PATH = ".github/workflows/ci.yml";
-const FIXTURE_MANIFEST_PATH = "fixtures/manifest.json";
 const EXPECTED_CI_RUN_COMMANDS = ["npm ci", "npm run check", "npm run smoke:ui", "npm audit --audit-level=moderate"];
 
 function main(): void {
@@ -49,6 +23,7 @@ function main(): void {
   results.push(validateExamples());
   results.push(validateFixtureReports());
   results.push(validateCliReports());
+  results.push(validateCliFixtureCatalog());
   results.push(validateCiWorkflow());
 
   console.log("IsoTrace artifact check passed");
@@ -119,6 +94,12 @@ function validateCliReports(): CheckResult {
   return { label: "CLI JSON reports validated", count: 2 };
 }
 
+function validateCliFixtureCatalog(): CheckResult {
+  const catalog = JSON.parse(runNode(["src/cli.ts", "--fixtures", "--json"])) as unknown;
+  assertJsonEqual(catalog, makeFixtureCatalog(), "CLI fixture catalog JSON");
+  return { label: "CLI fixture catalog checked", count: makeFixtureCatalog().count };
+}
+
 function validateCiWorkflow(): CheckResult {
   const text = readFileSync(CI_WORKFLOW_PATH, "utf8");
   expectContains(text, "name: CI", "CI workflow name");
@@ -184,17 +165,6 @@ function expectFixtureResult(result: AnalysisResult, contract: FixtureContract, 
     kindCounts: result.kindCounts,
   };
   assertJsonEqual(actual, contract.expected, `${contract.path} ${source} expected verdict`);
-}
-
-function readFixtureManifest(): FixtureManifest {
-  const parsed = JSON.parse(readFileSync(FIXTURE_MANIFEST_PATH, "utf8")) as Partial<FixtureManifest>;
-  if (parsed.schema !== "isotrace.fixture-manifest.v1") {
-    throw new Error(`${FIXTURE_MANIFEST_PATH} has unexpected schema ${String(parsed.schema)}`);
-  }
-  if (!Array.isArray(parsed.fixtures)) {
-    throw new Error(`${FIXTURE_MANIFEST_PATH} must contain a fixtures array`);
-  }
-  return parsed as FixtureManifest;
 }
 
 function expectInvalidHistoryExample(path: string, expectedMessage: string): void {

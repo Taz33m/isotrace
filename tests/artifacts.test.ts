@@ -6,6 +6,7 @@ import { analyzeHistory } from "../src/core/analyzer";
 import { parseHistoryJson, validateAnalysisReportArtifact, validateBenchmarkReportArtifact, validateHistoryArtifact } from "../src/core/artifacts";
 import { makeAnalysisReport } from "../src/core/report";
 import type { History } from "../src/core/types";
+import { makeFixtureCatalog } from "../src/fixtures/manifest";
 
 describe("portable artifacts", () => {
   it("validates every checked-in fixture through the shared history schema path", () => {
@@ -128,6 +129,32 @@ describe("portable artifacts", () => {
     expect(output).toContain("Schema: https://isotrace.dev/schemas/history.schema.json");
   });
 
+  it("exposes checked-in fixture contracts through the CLI catalog", () => {
+    const human = execFileSync(process.execPath, ["--import", "tsx", "src/cli.ts", "--fixtures"], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+    });
+    expect(human).toContain("IsoTrace fixture catalog");
+    expect(human).toContain("fixtures/write_skew_doctors.json");
+    expect(human).toContain("verdict: write-skew; ok=false; serializable=fail; strict=fail");
+    expect(human).toContain("command: npm run --silent analyze -- fixtures/stale_read_strict.json --strict --json");
+
+    const first = JSON.parse(
+      execFileSync(process.execPath, ["--import", "tsx", "src/cli.ts", "--fixtures", "--json"], {
+        cwd: process.cwd(),
+        encoding: "utf8",
+      }),
+    ) as unknown;
+    const second = JSON.parse(
+      execFileSync(process.execPath, ["--import", "tsx", "src/cli.ts", "--fixtures", "--json"], {
+        cwd: process.cwd(),
+        encoding: "utf8",
+      }),
+    ) as unknown;
+    expect(second).toEqual(first);
+    expect(first).toEqual(makeFixtureCatalog());
+  });
+
   it("exposes a batch artifact check command", () => {
     const output = execFileSync(process.execPath, ["--import", "tsx", "src/artifacts/check.ts"], {
       cwd: process.cwd(),
@@ -137,6 +164,7 @@ describe("portable artifacts", () => {
     expect(output).toContain("CLI JSON reports validated: 2");
     expect(output).toContain("CI workflow checked: 1");
     expect(output).toContain("fixture verdict contracts checked: 4");
+    expect(output).toContain("CLI fixture catalog checked: 4");
   });
 });
 
