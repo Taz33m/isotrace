@@ -6,7 +6,7 @@ import { analyzeHistory } from "../src/core/analyzer";
 import { validateAnalysisReportArtifact } from "../src/core/artifacts";
 import { explainResult, formatEdgeFacts } from "../src/core/explain";
 import { makeAnalysisReport } from "../src/core/report";
-import type { History, IsolationVerdict } from "../src/core/types";
+import type { AnalysisResult, History, IsolationVerdict } from "../src/core/types";
 import abortedWriteIgnored from "../fixtures/aborted_write_ignored.json";
 import serialStockDecrement from "../fixtures/serial_stock_decrement.json";
 import staleReadStrict from "../fixtures/stale_read_strict.json";
@@ -146,6 +146,24 @@ describe("semantic isolation verdicts", () => {
     }
   });
 
+  it("keeps structured proof-edge facts aligned with edge ids, kinds, and endpoints", () => {
+    const result = analyzeHistory(writeSkewDoctors as History);
+    expectProofEdgesMatchGraph(result);
+    expect(result.verdict.evidence.proofEdges.map((proofEdge) => proofEdge.summary)).toEqual([
+      "source fact: T1 read doctor/bob_on_call before T2's later write; target fact: T2 wrote doctor/bob_on_call=false",
+      "source fact: T2 read doctor/alice_on_call before T1's later write; target fact: T1 wrote doctor/alice_on_call=false",
+    ]);
+  });
+
+  it("keeps strict realtime proof-edge facts aligned with edge ids, kinds, and endpoints", () => {
+    const result = analyzeHistory(staleReadStrict as History, { strict: true });
+    expectProofEdgesMatchGraph(result);
+    expect(result.verdict.evidence.proofEdges.map((proofEdge) => proofEdge.summary)).toEqual([
+      "source fact: T1 committed before T2 began; target fact: T2 must be ordered after T1 by realtime",
+      "source fact: T2 read flag/ready before T1's later write; target fact: T1 wrote flag/ready=true",
+    ]);
+  });
+
   it("keeps generic dependency-cycle implicated transaction ordering stable", () => {
     const history = genericDependencyCycleHistory();
     const first = analyzeHistory(history).verdict;
@@ -170,6 +188,7 @@ describe("semantic isolation verdicts", () => {
     const validated = validateAnalysisReportArtifact(report);
     expect(validated.result.verdict.anomaly.label).toBe("write-skew");
     expect(validated.result.verdict.evidence.edgeKinds).toEqual(["rw", "rw"]);
+    expectProofEdgesMatchGraph(validated.result);
   });
 
   it("keeps human CLI text semantically aligned with the JSON verdict", () => {
@@ -217,6 +236,20 @@ describe("semantic isolation verdicts", () => {
     expect(output).toContain("Proof edges:");
   });
 });
+
+function expectProofEdgesMatchGraph(result: AnalysisResult): void {
+  const { evidence } = result.verdict;
+  expect(evidence.proofEdges.map((proofEdge) => proofEdge.edgeId)).toEqual(evidence.edgeIds);
+  expect(evidence.proofEdges.map((proofEdge) => proofEdge.edgeKind)).toEqual(evidence.edgeKinds);
+  for (const proofEdge of evidence.proofEdges) {
+    const edge = result.edges.find((candidate) => candidate.id === proofEdge.edgeId);
+    expect(edge).toBeDefined();
+    expect(proofEdge.edgeKind).toBe(edge?.kind);
+    expect(proofEdge.sourceTransaction).toBe(edge?.from);
+    expect(proofEdge.targetTransaction).toBe(edge?.to);
+    expect(formatEdgeFacts(edge!)).toBe(proofEdge.summary);
+  }
+}
 
 describe("edge fact formatting", () => {
   it("formats all edge kinds as source and target facts", () => {
