@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { analyzeHistory } from "../src/core/analyzer";
 import { validateAnalysisReportArtifact } from "../src/core/artifacts";
-import { explainResult } from "../src/core/explain";
+import { explainResult, formatEdgeFacts } from "../src/core/explain";
 import { makeAnalysisReport } from "../src/core/report";
 import type { History, IsolationVerdict } from "../src/core/types";
 import abortedWriteIgnored from "../fixtures/aborted_write_ignored.json";
@@ -198,6 +198,15 @@ describe("semantic isolation verdicts", () => {
     expect(human).toContain(`Proof edges: ${result.verdict.evidence.edgeIds.join(" -> ")}`);
   });
 
+  it("prints source and target facts for proof edges in CLI output", () => {
+    const output = execFileSync(process.execPath, ["--import", "tsx", "src/cli.ts", "fixtures/write_skew_doctors.json"], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+    });
+    expect(output).toContain("facts: source fact: T2 read doctor/alice_on_call before T1's later write; target fact: T1 wrote doctor/alice_on_call=false");
+    expect(output).toContain("facts: source fact: T1 read doctor/bob_on_call before T2's later write; target fact: T2 wrote doctor/bob_on_call=false");
+  });
+
   it("prints anomaly label and implicated transactions in CLI output", () => {
     const output = execFileSync(process.execPath, ["--import", "tsx", "src/cli.ts", "fixtures/write_skew_doctors.json"], {
       cwd: process.cwd(),
@@ -206,6 +215,53 @@ describe("semantic isolation verdicts", () => {
     expect(output).toContain("Anomaly: Write skew [write-skew]");
     expect(output).toContain("Implicated transactions: T1, T2");
     expect(output).toContain("Proof edges:");
+  });
+});
+
+describe("edge fact formatting", () => {
+  it("formats all edge kinds as source and target facts", () => {
+    expect(
+      formatEdgeFacts({
+        id: "e1",
+        from: "T0",
+        to: "T1",
+        kind: "ww",
+        key: "x",
+        value: 1,
+        reason: "fixture",
+      }),
+    ).toBe("source fact: T0 committed an earlier version of x; target fact: T1 wrote x=1");
+    expect(
+      formatEdgeFacts({
+        id: "e2",
+        from: "T0",
+        to: "T1",
+        kind: "wr",
+        key: "x",
+        value: 1,
+        reason: "fixture",
+      }),
+    ).toBe("source fact: T0 wrote x=1; target fact: T1 read x=1 from T0");
+    expect(
+      formatEdgeFacts({
+        id: "e3",
+        from: "T1",
+        to: "T2",
+        kind: "rw",
+        key: "x",
+        value: 2,
+        reason: "fixture",
+      }),
+    ).toBe("source fact: T1 read x before T2's later write; target fact: T2 wrote x=2");
+    expect(
+      formatEdgeFacts({
+        id: "e4",
+        from: "T1",
+        to: "T2",
+        kind: "rt",
+        reason: "fixture",
+      }),
+    ).toBe("source fact: T1 committed before T2 began; target fact: T2 must be ordered after T1 by realtime");
   });
 });
 

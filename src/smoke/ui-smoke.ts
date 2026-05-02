@@ -32,11 +32,13 @@ function runCliProofSmoke(): void {
   assertIncludes(demo, "Implicated transactions: T1, T2", "write-skew demo reports implicated transactions");
   assertIncludes(demo, "Version order uses commit timestamps", "write-skew demo explains version-order mode");
   assertIncludes(demo, "Serializable order is impossible", "write-skew demo prints a cycle witness");
+  assertIncludes(demo, "facts: source fact: T2 read doctor/alice_on_call", "write-skew demo prints source/target proof facts");
 
   const strict = runIsoTraceCli(["fixtures/stale_read_strict.json", "--strict"]);
   assertIncludes(strict, "Anomaly: Strict stale read [strict-stale-read]", "strict demo reports stale-read anomaly label");
   assertIncludes(strict, "Strict serializability is violated", "strict demo prints a strict cycle witness");
   assertIncludes(strict, "[rt/realtime]", "strict demo includes realtime edge proof");
+  assertIncludes(strict, "facts: source fact: T1 committed before T2 began", "strict demo prints realtime proof facts");
 
   const json = JSON.parse(runIsoTraceCli(["fixtures/write_skew_doctors.json", "--json"])) as {
     report?: { schema?: string };

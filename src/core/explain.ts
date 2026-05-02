@@ -1,6 +1,6 @@
 import type { AnalysisResult, CycleWitness, DependencyEdge } from "./types";
 import { edgeKindLabel } from "./analyzer";
-import { plural } from "./format";
+import { formatJsonValue, plural } from "./format";
 
 export function explainResult(result: AnalysisResult): string {
   const lines: string[] = [];
@@ -59,6 +59,7 @@ export function formatCycle(cycle: CycleWitness): string {
   lines.push(`- ${cycle.id}: ${cycle.summary}`);
   cycle.edges.forEach((edge, index) => {
     lines.push(`  ${index + 1}. ${formatEdge(edge)}`);
+    lines.push(`     facts: ${formatEdgeFacts(edge)}`);
   });
   return lines.join("\n");
 }
@@ -68,8 +69,27 @@ export function formatEdge(edge: DependencyEdge): string {
   return `${edge.from} -> ${edge.to} [${edge.kind}/${edgeKindLabel(edge.kind)}${key}]: ${edge.reason}`;
 }
 
+export function formatEdgeFacts(edge: DependencyEdge): string {
+  const key = edge.key ?? "transaction order";
+  if (edge.kind === "ww") {
+    return `source fact: ${edge.from} committed an earlier version of ${key}; target fact: ${edge.to} wrote ${formatKeyValue(key, edge)}`;
+  }
+  if (edge.kind === "wr") {
+    return `source fact: ${edge.from} wrote ${formatKeyValue(key, edge)}; target fact: ${edge.to} read ${formatKeyValue(key, edge)} from ${edge.from}`;
+  }
+  if (edge.kind === "rw") {
+    return `source fact: ${edge.from} read ${key} before ${edge.to}'s later write; target fact: ${edge.to} wrote ${formatKeyValue(key, edge)}`;
+  }
+  return `source fact: ${edge.from} committed before ${edge.to} began; target fact: ${edge.to} must be ordered after ${edge.from} by realtime`;
+}
+
 function formatStatus(status: string): string {
   if (status === "pass") return "PASS";
   if (status === "fail") return "FAIL";
   return "NOT EVALUATED";
+}
+
+function formatKeyValue(key: string, edge: DependencyEdge): string {
+  if (edge.value === undefined) return key;
+  return `${key}=${formatJsonValue(edge.value)}`;
 }
