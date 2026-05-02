@@ -12,8 +12,7 @@
 
 <p align="center">
   <a href="https://youtu.be/C0MLM3jucMY">Demo Video</a> ·
-  <a href="paper/isotrace.pdf">Artifact Paper</a> ·
-  <a href="paper/isotrace.tex">Paper Source</a>
+  <a href="paper/isotrace.pdf">Artifact Paper</a>
 </p>
 
 <p align="center">
@@ -29,6 +28,12 @@
 <p align="center">
   <a href="https://youtu.be/C0MLM3jucMY">
     <img src="assets/isotrace-preview.png" alt="IsoTrace dependency cycle demo preview" width="780" />
+  </a>
+</p>
+
+<p align="center">
+  <a href="paper/isotrace.pdf">
+    <img src="assets/isotrace-paper-thumb.png" alt="IsoTrace artifact paper preview" width="360" />
   </a>
 </p>
 
@@ -254,7 +259,6 @@ This importer materializes explicit history evidence. It is not a live database 
 ## Artifact Paper
 
 PDF: [`paper/isotrace.pdf`](paper/isotrace.pdf)
-Source: [`paper/isotrace.tex`](paper/isotrace.tex)
 
 The paper documents the model, dependency graph construction, verdict layer, predicate-read evidence, fixture table, limitations, and reproducibility commands.
 
