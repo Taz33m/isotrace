@@ -18,7 +18,8 @@ body {
 }
 
 button,
-input {
+input,
+textarea {
   font: inherit;
 }
 
@@ -169,6 +170,66 @@ h1 {
 .scenarioButton small {
   color: #64748b;
   font-weight: 700;
+}
+
+.importPanel {
+  border-top: 1px solid #e5eaf1;
+  display: grid;
+  gap: 10px;
+  margin-top: 4px;
+  padding-top: 14px;
+}
+
+.importPanel textarea {
+  background: #0f172a;
+  border: 1px solid #263244;
+  border-radius: 8px;
+  color: #dbeafe;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.74rem;
+  line-height: 1.45;
+  min-height: 160px;
+  outline: none;
+  padding: 10px;
+  resize: vertical;
+  width: 100%;
+}
+
+.importPanel textarea:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16);
+}
+
+.importActions {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.importActions button {
+  background: #f8fafc;
+  border: 1px solid #dbe3ed;
+  border-radius: 8px;
+  color: #1f2937;
+  font-size: 0.82rem;
+  font-weight: 800;
+  min-height: 36px;
+}
+
+.importActions button:first-child {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+  color: #ffffff;
+}
+
+.errorBox {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #991b1b;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  padding: 9px 10px;
 }
 
 .modePanel {

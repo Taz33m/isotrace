@@ -1,4 +1,4 @@
-import { Activity, AlertTriangle, CheckCircle2, GitBranch, Play, TerminalSquare } from "lucide-react";
+import { Activity, AlertTriangle, CheckCircle2, Code2, GitBranch, Play, TerminalSquare } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { analyzeHistory, edgeKindLabel } from "./core/analyzer";
 import { formatJsonValue } from "./core/format";
@@ -14,7 +14,14 @@ const edgeColors: Record<EdgeKind, string> = {
 
 export default function App() {
   const [selectedSlug, setSelectedSlug] = useState(fixtureCatalog[0].slug);
-  const selected = fixtureCatalog.find((entry) => entry.slug === selectedSlug) ?? fixtureCatalog[0];
+  const [customHistory, setCustomHistory] = useState<History | null>(null);
+  const [customText, setCustomText] = useState(() => JSON.stringify(fixtureCatalog[0].history, null, 2));
+  const [customError, setCustomError] = useState<string | null>(null);
+  const selectedFixture = fixtureCatalog.find((entry) => entry.slug === selectedSlug) ?? fixtureCatalog[0];
+  const selected =
+    selectedSlug === "__custom__" && customHistory
+      ? { slug: "__custom__", title: "Custom JSON", history: customHistory }
+      : selectedFixture;
   const [strictMode, setStrictMode] = useState(selected.history.mode === "strict-serializable");
 
   useEffect(() => {
@@ -51,13 +58,57 @@ export default function App() {
             <button
               className={`scenarioButton ${entry.slug === selectedSlug ? "active" : ""}`}
               key={entry.slug}
-              onClick={() => setSelectedSlug(entry.slug)}
+              onClick={() => {
+                setSelectedSlug(entry.slug);
+                setCustomError(null);
+              }}
               type="button"
             >
               <span>{entry.title}</span>
               <small>{expectedVerdict(entry.history)}</small>
             </button>
           ))}
+          {customHistory ? (
+            <button
+              className={`scenarioButton ${selectedSlug === "__custom__" ? "active" : ""}`}
+              onClick={() => {
+                setSelectedSlug("__custom__");
+                setCustomError(null);
+              }}
+              type="button"
+            >
+              <span>Custom JSON</span>
+              <small>{expectedVerdict(customHistory)}</small>
+            </button>
+          ) : null}
+
+          <div className="importPanel">
+            <div className="railHeader">
+              <Code2 size={18} />
+              <span>Custom History</span>
+            </div>
+            <textarea
+              aria-label="Custom history JSON"
+              onChange={(event) => setCustomText(event.target.value)}
+              spellCheck={false}
+              value={customText}
+            />
+            {customError ? <div className="errorBox">{customError}</div> : null}
+            <div className="importActions">
+              <button onClick={() => analyzeCustomHistory(customText, setCustomHistory, setSelectedSlug, setStrictMode, setCustomError)} type="button">
+                Analyze JSON
+              </button>
+              <button
+                onClick={() => {
+                  setCustomText(JSON.stringify(selected.history, null, 2));
+                  setCustomError(null);
+                }}
+                type="button"
+              >
+                Copy Active
+              </button>
+            </div>
+          </div>
 
           <div className="modePanel">
             <span>Graph mode</span>
@@ -73,7 +124,11 @@ export default function App() {
 
           <div className="commandBox">
             <TerminalSquare size={17} />
-            <code>npm run analyze -- fixtures/{selected.slug}.json{strictMode ? " --strict" : ""}</code>
+            <code>
+              {selected.slug === "__custom__"
+                ? "browser custom JSON"
+                : `npm run analyze -- fixtures/${selected.slug}.json${strictMode ? " --strict" : ""}`}
+            </code>
           </div>
         </aside>
 
@@ -114,6 +169,25 @@ function expectedVerdict(history: History): string {
     return result.ok ? "passes" : "fails";
   } catch {
     return `${history.transactions.length} tx`;
+  }
+}
+
+function analyzeCustomHistory(
+  text: string,
+  setCustomHistory: (history: History) => void,
+  setSelectedSlug: (slug: string) => void,
+  setStrictMode: (strict: boolean) => void,
+  setCustomError: (error: string | null) => void,
+): void {
+  try {
+    const parsed = JSON.parse(text) as History;
+    const result = analyzeHistory(parsed);
+    setCustomHistory(parsed);
+    setSelectedSlug("__custom__");
+    setStrictMode(result.mode === "strict-serializable");
+    setCustomError(null);
+  } catch (error) {
+    setCustomError(error instanceof Error ? error.message : String(error));
   }
 }
 

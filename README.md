@@ -46,6 +46,8 @@ npm run dev
 
 Then visit `http://127.0.0.1:5173/`. The first screen shows the fixture, graph, edge table, and cycle proof.
 
+The workbench also accepts pasted history JSON in the `Custom History` editor. Paste a CLI-compatible history, click `Analyze JSON`, and the same graph, edge table, validation notes, and cycle witness update in place.
+
 ## Architecture
 
 - `src/core/validate.ts`: runtime validation for history shape, timestamps, read provenance, and v1 modeling constraints.
@@ -132,7 +134,6 @@ IsoTrace is not a dashboard around fake telemetry. The core artifact is a determ
 ## Future Work
 
 - JSON Schema for fixture validation and editor support.
-- Custom fixture import in the browser workbench.
 - More cycle witnesses per SCC when multiple independent causes exist.
 - Predicate-read and range-read modeling, if the input format grows enough to support it honestly.
 - More stable benchmark methodology with warmups and environment provenance.
