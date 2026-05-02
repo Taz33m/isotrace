@@ -7,11 +7,12 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -p tsconfig.json && vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "check": "npm run typecheck && npm test && npm run build && npm run bench",
+    "check": "npm run typecheck && npm test && npm run artifacts:check && npm run build && npm run bench",
     "test": "vitest run",
     "demo": "node --import tsx src/cli.ts fixtures/write_skew_doctors.json",
     "demo:strict": "node --import tsx src/cli.ts fixtures/stale_read_strict.json --strict",
     "analyze": "node --import tsx src/cli.ts",
+    "artifacts:check": "node --import tsx src/artifacts/check.ts",
     "bench": "node --import tsx src/bench/bench.ts",
     "smoke:ui": "node --import tsx src/smoke/ui-smoke.ts",
     "preview": "vite preview --host 127.0.0.1"

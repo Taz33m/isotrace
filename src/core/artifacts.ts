@@ -1,9 +1,10 @@
 import type Ajv from "ajv";
 import { type ErrorObject, type ValidateFunction } from "ajv";
 import Ajv2020 from "ajv/dist/2020";
+import benchmarkSchema from "../../schemas/benchmark.schema.json";
 import historySchema from "../../schemas/history.schema.json";
 import reportSchema from "../../schemas/report.schema.json";
-import type { AnalysisReport } from "./report";
+import type { AnalysisReport, BenchmarkReport } from "./report";
 import type { History } from "./types";
 import { HistoryValidationError, type NormalizedHistory, normalizeHistory } from "./validate";
 
@@ -18,6 +19,7 @@ interface HistoryArtifactOptions {
 
 let historyValidator: ValidateFunction | null = null;
 let reportValidator: ValidateFunction | null = null;
+let benchmarkValidator: ValidateFunction | null = null;
 
 export function parseHistoryJson(text: string, options: HistoryArtifactOptions = {}): HistoryArtifact {
   return validateHistoryArtifact(parseJson(text, "history JSON"), options);
@@ -47,6 +49,14 @@ export function validateAnalysisReportArtifact(value: unknown): AnalysisReport {
   const report = value as AnalysisReport;
   validateHistoryArtifact(report.result.history, { strict: report.result.mode === "strict-serializable" });
   return report;
+}
+
+export function validateBenchmarkReportArtifact<Row>(value: unknown): BenchmarkReport<Row> {
+  const validate = getBenchmarkValidator();
+  if (!validate(value)) {
+    throw new HistoryValidationError(formatSchemaErrors("benchmark report", validate.errors ?? []));
+  }
+  return value as BenchmarkReport<Row>;
 }
 
 function validateStrictTimestamps(normalized: NormalizedHistory): void {
@@ -79,6 +89,11 @@ function getReportValidator(): ValidateFunction {
     reportValidator = ajv.compile(reportSchema);
   }
   return reportValidator;
+}
+
+function getBenchmarkValidator(): ValidateFunction {
+  benchmarkValidator ??= createAjv().compile(benchmarkSchema);
+  return benchmarkValidator;
 }
 
 function createAjv(): Ajv {

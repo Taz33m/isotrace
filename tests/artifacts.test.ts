@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { analyzeHistory } from "../src/core/analyzer";
-import { parseHistoryJson, validateAnalysisReportArtifact, validateHistoryArtifact } from "../src/core/artifacts";
+import { parseHistoryJson, validateAnalysisReportArtifact, validateBenchmarkReportArtifact, validateHistoryArtifact } from "../src/core/artifacts";
 import { makeAnalysisReport } from "../src/core/report";
 import type { History } from "../src/core/types";
 
@@ -109,6 +109,16 @@ describe("portable artifacts", () => {
     expect(() => validateAnalysisReportArtifact(report)).toThrow("analysis report schema violation: /input requires property sha256");
   });
 
+  it("validates CLI benchmark JSON reports", () => {
+    const output = execFileSync(process.execPath, ["--import", "tsx", "src/bench/bench.ts", "--json"], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+    });
+    const report = validateBenchmarkReportArtifact(JSON.parse(output) as unknown);
+    expect(report.benchmark.name).toBe("generated-serial-histories");
+    expect(report.benchmark.rows.length).toBeGreaterThan(0);
+  });
+
   it("exposes a CLI validate path for portable histories", () => {
     const output = execFileSync(process.execPath, ["--import", "tsx", "src/cli.ts", "examples/valid_history.json", "--validate"], {
       cwd: process.cwd(),
@@ -116,5 +126,14 @@ describe("portable artifacts", () => {
     });
     expect(output).toContain("Valid history: portable_valid_history");
     expect(output).toContain("Schema: https://isotrace.dev/schemas/history.schema.json");
+  });
+
+  it("exposes a batch artifact check command", () => {
+    const output = execFileSync(process.execPath, ["--import", "tsx", "src/artifacts/check.ts"], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+    });
+    expect(output).toContain("IsoTrace artifact check passed");
+    expect(output).toContain("CLI JSON reports validated: 2");
   });
 });
