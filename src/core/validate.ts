@@ -169,5 +169,21 @@ function isJsonValue(value: unknown): value is JsonValue {
 }
 
 function jsonEqual(left: JsonValue, right: JsonValue): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
+  if (Object.is(left, right)) return true;
+  if (left === null || right === null) return left === right;
+
+  if (Array.isArray(left) || Array.isArray(right)) {
+    if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
+    return left.every((value, index) => jsonEqual(value, right[index] as JsonValue));
+  }
+
+  if (isRecord(left) || isRecord(right)) {
+    if (!isRecord(left) || !isRecord(right)) return false;
+    const leftKeys = Object.keys(left).sort();
+    const rightKeys = Object.keys(right).sort();
+    if (leftKeys.length !== rightKeys.length) return false;
+    return leftKeys.every((key, index) => key === rightKeys[index] && jsonEqual(left[key] as JsonValue, right[key] as JsonValue));
+  }
+
+  return false;
 }

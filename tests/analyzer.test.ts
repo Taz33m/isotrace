@@ -65,6 +65,27 @@ describe("IsoTrace analyzer", () => {
     expect(() => analyzeHistory(badHistory)).toThrow(/wrote 1/);
   });
 
+  it("accepts structurally equal JSON object values regardless of key order", () => {
+    const history: History = {
+      name: "object-key-order",
+      description: "object key order should not affect read provenance",
+      transactions: [
+        {
+          id: "T0",
+          commit: 0,
+          ops: [{ type: "write", key: "doc", value: { a: 1, b: { c: true, d: [1, 2] } } }],
+        },
+        {
+          id: "T1",
+          begin: 1,
+          commit: 2,
+          ops: [{ type: "read", key: "doc", value: { b: { d: [1, 2], c: true }, a: 1 }, from: "T0" }],
+        },
+      ],
+    };
+    expect(analyzeHistory(history).ok).toBe(true);
+  });
+
   it("rejects repeated writes to the same key in one transaction", () => {
     const badHistory: History = {
       name: "bad-repeated-write",
