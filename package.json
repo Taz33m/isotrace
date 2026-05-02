@@ -13,6 +13,7 @@
     "demo:strict": "node --import tsx src/cli.ts fixtures/stale_read_strict.json --strict",
     "analyze": "node --import tsx src/cli.ts",
     "bench": "node --import tsx src/bench/bench.ts",
+    "smoke:ui": "node --import tsx src/smoke/ui-smoke.ts",
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {
@@ -25,6 +26,7 @@
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^6.0.1",
+    "playwright": "^1.59.1",
     "tsx": "^4.16.2",
     "typescript": "^5.5.4",
     "vite": "^8.0.10",

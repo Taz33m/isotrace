@@ -1,6 +1,8 @@
 import type { History, IsolationMode, JsonValue, ReadOp, Transaction, TransactionStatus, WriteOp } from "./types";
 import { formatJsonValue } from "./format";
 
+const INITIAL_TRANSACTION_ID = "T0";
+
 export class HistoryValidationError extends Error {
   constructor(message: string) {
     super(message);
@@ -17,6 +19,13 @@ export interface NormalizedHistory {
   notes: string[];
 }
 
+type VersionOrderMode = "explicit-commit" | "fixture-order";
+
+interface VersionOrdering {
+  mode: VersionOrderMode;
+  notes: string[];
+}
+
 export function normalizeHistory(history: History): NormalizedHistory {
   if (!isRecord(history)) {
     throw new HistoryValidationError("history must be an object");
@@ -29,7 +38,6 @@ export function normalizeHistory(history: History): NormalizedHistory {
   }
 
   const txById = new Map<string, Transaction>();
-  const commitTimes = new Map<number, string>();
   history.transactions.forEach((tx, index) => {
     if (!isRecord(tx) || !isNonEmptyString(tx.id) || !Array.isArray(tx.ops)) {
       throw new HistoryValidationError(`transaction at index ${index} requires id and ops[]`);
@@ -44,13 +52,6 @@ export function normalizeHistory(history: History): NormalizedHistory {
       throw new HistoryValidationError(`${tx.id} status must be committed or aborted`);
     }
     validateTime(tx);
-    if ((tx.status ?? "committed") === "committed" && tx.commit !== undefined) {
-      const existing = commitTimes.get(tx.commit);
-      if (existing) {
-        throw new HistoryValidationError(`${tx.id} and ${existing} share commit time ${tx.commit}; version order must be unambiguous`);
-      }
-      commitTimes.set(tx.commit, tx.id);
-    }
     if (txById.has(tx.id)) {
       throw new HistoryValidationError(`duplicate transaction id ${tx.id}`);
     }
@@ -59,11 +60,12 @@ export function normalizeHistory(history: History): NormalizedHistory {
     rejectRepeatedWrites(tx);
   });
 
-  validateCommittedOrdering(history.transactions);
+  const ordering = validateCommittedOrdering(history.transactions);
+  const fixtureIndex = new Map(history.transactions.map((tx, index) => [tx.id, index]));
   const committed = history.transactions
     .filter((tx) => (tx.status ?? "committed") === "committed")
     .slice()
-    .sort((a, b) => comparableCommit(a, history.transactions) - comparableCommit(b, history.transactions));
+    .sort((a, b) => compareCommittedVersionOrder(a, b, ordering.mode, fixtureIndex));
   const ignored = history.transactions.filter((tx) => (tx.status ?? "committed") !== "committed");
   const order = new Map<string, number>();
   committed.forEach((tx, index) => order.set(tx.id, index));
@@ -90,7 +92,10 @@ export function normalizeHistory(history: History): NormalizedHistory {
     }
   }
 
-  const notes = ignored.map((tx) => `${tx.id} is ${tx.status}; it is ignored when building committed-version order.`);
+  const notes = [
+    ...ordering.notes,
+    ...ignored.map((tx) => `${tx.id} is ${tx.status}; it is ignored when building committed-version order.`),
+  ];
   return { history, committed, ignored, order, txById, notes };
 }
 
@@ -115,20 +120,48 @@ function validateOp(txId: string, op: ReadOp | WriteOp, opIndex: number): void {
   }
 }
 
-function comparableCommit(tx: Transaction, transactions: Transaction[]): number {
-  if (typeof tx.commit === "number") return tx.commit;
-  return transactions.indexOf(tx);
+function compareCommittedVersionOrder(
+  left: Transaction,
+  right: Transaction,
+  mode: VersionOrderMode,
+  fixtureIndex: Map<string, number>,
+): number {
+  if (isInitialSeed(left) && !isInitialSeed(right)) return -1;
+  if (!isInitialSeed(left) && isInitialSeed(right)) return 1;
+  if (mode === "explicit-commit") {
+    return (left.commit ?? 0) - (right.commit ?? 0) || (fixtureIndex.get(left.id) ?? 0) - (fixtureIndex.get(right.id) ?? 0);
+  }
+  return (fixtureIndex.get(left.id) ?? 0) - (fixtureIndex.get(right.id) ?? 0);
 }
 
-function validateCommittedOrdering(transactions: Transaction[]): void {
+function validateCommittedOrdering(transactions: Transaction[]): VersionOrdering {
   const committed = transactions.filter((tx) => (tx.status ?? "committed") === "committed");
-  const withCommit = committed.filter((tx) => tx.commit !== undefined);
-  if (withCommit.length > 0 && withCommit.length < committed.length) {
-    const missing = committed.filter((tx) => tx.commit === undefined).map((tx) => tx.id).join(", ");
+  const nonInitial = committed.filter((tx) => !isInitialSeed(tx));
+  const withCommit = nonInitial.filter((tx) => tx.commit !== undefined);
+  if (withCommit.length > 0 && withCommit.length < nonInitial.length) {
+    const missing = nonInitial.filter((tx) => tx.commit === undefined).map((tx) => tx.id).join(", ");
     throw new HistoryValidationError(
-      `committed transactions must either all include commit timestamps or all omit them; missing commit on ${missing}`,
+      `committed non-initial transactions must either all include commit timestamps or all omit them; missing commit on ${missing}`,
     );
   }
+  const commitTimes = new Map<number, string>();
+  for (const tx of withCommit) {
+    const existing = commitTimes.get(tx.commit ?? 0);
+    if (existing) {
+      throw new HistoryValidationError(`${tx.id} and ${existing} share commit time ${tx.commit}; non-initial version order must be unambiguous`);
+    }
+    commitTimes.set(tx.commit ?? 0, tx.id);
+  }
+  if (withCommit.length === nonInitial.length && nonInitial.length > 0) {
+    return {
+      mode: "explicit-commit",
+      notes: [`Version order uses commit timestamps for committed non-initial transactions; ${INITIAL_TRANSACTION_ID} is treated as the initial seed when present.`],
+    };
+  }
+  return {
+    mode: "fixture-order",
+    notes: [`Version order uses fixture order for committed non-initial transactions; ${INITIAL_TRANSACTION_ID} is treated as the initial seed when present.`],
+  };
 }
 
 function validateTime(tx: Transaction): void {
@@ -141,6 +174,10 @@ function validateTime(tx: Transaction): void {
   if (tx.begin !== undefined && tx.commit !== undefined && tx.begin > tx.commit) {
     throw new HistoryValidationError(`${tx.id} begin ${tx.begin} is after commit ${tx.commit}`);
   }
+}
+
+function isInitialSeed(tx: Transaction): boolean {
+  return tx.id === INITIAL_TRANSACTION_ID;
 }
 
 function rejectRepeatedWrites(tx: Transaction): void {

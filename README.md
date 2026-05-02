@@ -86,6 +86,8 @@ IsoTrace expects JSON histories like:
 
 Each read must name the transaction version it observed with `from`. The referenced writer must be committed and must have written the same key and value. For v1, a transaction may write a key at most once.
 
+Version order is explicit rather than inferred from read values. `T0` is reserved for an initial seed transaction when present; its optional `commit` is allowed but does not force the rest of the fixture into timestamped ordering. For committed transactions other than `T0`, either every transaction supplies a numeric `commit` and IsoTrace orders versions by commit time, or every transaction omits `commit` and IsoTrace uses fixture order. Mixed explicit/missing commits among non-initial committed transactions are rejected because the version order would be ambiguous.
+
 ## Commands
 
 ```bash
@@ -97,10 +99,13 @@ npm run demo
 npm run demo:strict
 npm run bench
 npm run bench -- --json
+npm run smoke:ui
 npm run analyze -- fixtures/write_skew_doctors.json --json
 ```
 
 `npm run check` runs typecheck, tests, production build, and the benchmark smoke. The `--json` CLI mode emits a report envelope with schema version, tool version, command, runtime, git state, input byte count, input SHA-256, and the full analysis result. That result includes the full input history, so do not use it for histories containing secrets unless printing those values is acceptable.
+
+`npm run smoke:ui` runs CLI proof checks first, then launches a local Vite workbench with Playwright when a headless browser is available. It verifies fixture selection, custom JSON import, custom validation errors, and a cycle witness without using the in-app browser.
 
 ## Test And Benchmark Proof
 
@@ -126,7 +131,7 @@ The benchmark uses generated serial histories to smoke-test graph construction a
 - No predicate-read inference.
 - No claim of full Elle compatibility.
 - No certification of any database system.
-- Version order is commit-time order when every committed transaction has a `commit`; if all committed transactions omit `commit`, fixture order is used. Mixed timestamped/untimestamped committed histories and equal committed timestamps are rejected because the v1 model needs unambiguous order.
+- Equal non-initial commit timestamps are rejected because the v1 model needs unambiguous version order.
 - Strict mode requires numeric `begin` and `commit` on non-initial committed transactions.
 - Fixtures are synthetic, deterministic examples built to exercise the analyzer.
 

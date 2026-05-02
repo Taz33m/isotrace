@@ -124,17 +124,35 @@ describe("IsoTrace analyzer", () => {
     expect(() => analyzeHistory(ambiguousCommit)).toThrow(/share commit time/);
   });
 
-  it("rejects mixed committed histories where some transactions omit commit timestamps", () => {
+  it("allows a timestamped T0 seed with fixture-ordered non-initial transactions", () => {
+    const seededFixtureOrder: History = {
+      name: "seeded-fixture-order",
+      description: "T0 may carry a seed timestamp while non-initial transactions use fixture order",
+      transactions: [
+        { id: "T0", commit: 99, ops: [{ type: "write", key: "x", value: 0 }] },
+        { id: "T1", ops: [{ type: "write", key: "x", value: 1 }] },
+        { id: "T2", ops: [{ type: "read", key: "x", value: 1, from: "T1" }] },
+      ],
+    };
+    const result = analyzeHistory(seededFixtureOrder);
+    expect(result.ok).toBe(true);
+    expect(result.edges.some((edge) => edge.kind === "ww" && edge.from === "T0" && edge.to === "T1")).toBe(true);
+    expect(result.validationNotes).toContain(
+      "Version order uses fixture order for committed non-initial transactions; T0 is treated as the initial seed when present.",
+    );
+  });
+
+  it("rejects mixed explicit and missing commits among non-initial transactions", () => {
     const mixedCommitOrder: History = {
       name: "mixed-commit-order",
-      description: "partial commit timestamps make version order depend on array position",
+      description: "partial non-initial commit timestamps make version order ambiguous",
       transactions: [
         { id: "T0", commit: 0, ops: [{ type: "write", key: "x", value: 0 }] },
         { id: "T1", ops: [{ type: "write", key: "x", value: 1 }] },
-        { id: "T2", commit: 1, ops: [{ type: "write", key: "x", value: 2 }] },
+        { id: "T2", commit: 3, ops: [{ type: "write", key: "x", value: 2 }] },
       ],
     };
-    expect(() => analyzeHistory(mixedCommitOrder)).toThrow(/all include commit timestamps or all omit them/);
+    expect(() => analyzeHistory(mixedCommitOrder)).toThrow(/non-initial transactions must either all include commit timestamps or all omit them/);
   });
 
   it("rejects strict analysis without complete timestamps", () => {

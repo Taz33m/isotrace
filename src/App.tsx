@@ -32,7 +32,7 @@ export default function App() {
   const cycleEdgeIds = useMemo(() => new Set(result.cycles.flatMap((cycle) => cycle.edges.map((edge) => edge.id))), [result]);
 
   return (
-    <main className="appShell">
+    <main className="appShell" data-testid="app-shell">
       <header className="topbar">
         <div>
           <div className="eyebrow">Explicit-history isolation checker</div>
@@ -57,6 +57,7 @@ export default function App() {
           {fixtureCatalog.map((entry) => (
             <button
               className={`scenarioButton ${entry.slug === selectedSlug ? "active" : ""}`}
+              data-testid={`scenario-${entry.slug}`}
               key={entry.slug}
               onClick={() => {
                 setSelectedSlug(entry.slug);
@@ -71,6 +72,7 @@ export default function App() {
           {customHistory ? (
             <button
               className={`scenarioButton ${selectedSlug === "__custom__" ? "active" : ""}`}
+              data-testid="scenario-custom"
               onClick={() => {
                 setSelectedSlug("__custom__");
                 setCustomError(null);
@@ -89,13 +91,18 @@ export default function App() {
             </div>
             <textarea
               aria-label="Custom history JSON"
+              data-testid="custom-history-input"
               onChange={(event) => setCustomText(event.target.value)}
               spellCheck={false}
               value={customText}
             />
-            {customError ? <div className="errorBox">{customError}</div> : null}
+            {customError ? <div className="errorBox" data-testid="custom-history-error">{customError}</div> : null}
             <div className="importActions">
-              <button onClick={() => analyzeCustomHistory(customText, setCustomHistory, setSelectedSlug, setStrictMode, setCustomError)} type="button">
+              <button
+                data-testid="analyze-custom-history"
+                onClick={() => analyzeCustomHistory(customText, setCustomHistory, setSelectedSlug, setStrictMode, setCustomError)}
+                type="button"
+              >
                 Analyze JSON
               </button>
               <button
@@ -370,7 +377,7 @@ function CycleProof({ result }: { result: AnalysisResult }) {
   return (
     <div className="proofStack">
       {result.cycles.map((cycle) => (
-        <article className="cycleCard" key={cycle.id}>
+        <article className="cycleCard" data-testid="cycle-card" key={cycle.id}>
           <strong>{cycle.summary}</strong>
           <ol>
             {cycle.edges.map((edge) => (
