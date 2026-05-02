@@ -6,9 +6,12 @@ export function buildIsolationVerdict(options: {
   serialCycles: CycleWitness[];
   ignoredTransactions: string[];
 }): IsolationVerdict {
-  const serialCycle = options.serialCycles[0] ?? null;
-  const writeSkewCycle = options.serialCycles.find(isWriteSkewCycle) ?? null;
-  const strictCycle = options.cycles.find((cycle) => cycle.edges.some((edge) => edge.kind === "rt")) ?? null;
+  const allCycles = stableCycles(options.cycles);
+  const serialCycles = stableCycles(options.serialCycles);
+  const ignoredTransactions = stableTransactionIds(options.ignoredTransactions);
+  const serialCycle = serialCycles[0] ?? null;
+  const writeSkewCycle = serialCycles.find(isWriteSkewCycle) ?? null;
+  const strictCycle = allCycles.find((cycle) => cycle.edges.some((edge) => edge.kind === "rt")) ?? null;
 
   if (writeSkewCycle) {
     return writeSkewVerdict(writeSkewCycle, options.mode);
@@ -19,14 +22,15 @@ export function buildIsolationVerdict(options: {
   if (strictCycle && options.mode === "strict-serializable") {
     return strictRealtimeVerdict(strictCycle);
   }
-  if (options.ignoredTransactions.length > 0) {
-    return abortedIgnoredVerdict(options.mode, options.ignoredTransactions);
+  if (ignoredTransactions.length > 0) {
+    return abortedIgnoredVerdict(options.mode, ignoredTransactions);
   }
   return validVerdict(options.mode);
 }
 
 function writeSkewVerdict(cycle: CycleWitness, mode: IsolationMode): IsolationVerdict {
   const txs = uniqueCycleTransactions(cycle);
+  const evidence = evidenceFromCycle(cycle, "rw/rw cycle between committed transactions");
   return {
     serializable: {
       status: "fail",
@@ -41,16 +45,17 @@ function writeSkewVerdict(cycle: CycleWitness, mode: IsolationMode): IsolationVe
       title: "Write skew",
     },
     implicatedTransactions: txs,
-    evidence: evidenceFromCycle(cycle, "rw/rw cycle between committed transactions"),
+    evidence,
     summary: "Not serializable: write-skew dependency cycle.",
     explanation: `${txs.join(" and ")} each read a version that the other transaction later invalidated, closing an rw/rw cycle.`,
-    inspectFirst: `Inspect ${cycle.id}, especially proof edges ${cycle.edges.map((edge) => edge.id).join(", ")}.`,
+    inspectFirst: `Inspect ${cycle.id}, especially proof edges ${evidence.edgeIds.join(", ")}.`,
     limitations: baseLimitations(mode),
   };
 }
 
 function dependencyCycleVerdict(cycle: CycleWitness, mode: IsolationMode): IsolationVerdict {
   const txs = uniqueCycleTransactions(cycle);
+  const evidence = evidenceFromCycle(cycle, "committed dependency cycle");
   return {
     serializable: {
       status: "fail",
@@ -65,10 +70,10 @@ function dependencyCycleVerdict(cycle: CycleWitness, mode: IsolationMode): Isola
       title: "Dependency cycle",
     },
     implicatedTransactions: txs,
-    evidence: evidenceFromCycle(cycle, "committed dependency cycle"),
+    evidence,
     summary: "Not serializable: dependency cycle.",
     explanation: `No serial order can satisfy the dependency sequence ${txs.join(" -> ")}.`,
-    inspectFirst: `Inspect ${cycle.id} and its edge sequence ${cycle.edges.map((edge) => edge.id).join(", ")}.`,
+    inspectFirst: `Inspect ${cycle.id} and its edge sequence ${evidence.edgeIds.join(", ")}.`,
     limitations: baseLimitations(mode),
   };
 }
@@ -77,6 +82,7 @@ function strictRealtimeVerdict(cycle: CycleWitness): IsolationVerdict {
   const txs = uniqueCycleTransactions(cycle);
   const hasReadEvidence = cycle.edges.some((edge) => edge.kind === "rw" || edge.kind === "wr");
   const label = hasReadEvidence ? "strict-stale-read" : "dependency-cycle";
+  const evidence = evidenceFromCycle(cycle, hasReadEvidence ? "rt edge plus read provenance cycle" : "rt edge cycle");
   return {
     serializable: {
       status: "pass",
@@ -91,7 +97,7 @@ function strictRealtimeVerdict(cycle: CycleWitness): IsolationVerdict {
       title: hasReadEvidence ? "Strict stale read" : "Strict realtime dependency cycle",
     },
     implicatedTransactions: txs,
-    evidence: evidenceFromCycle(cycle, hasReadEvidence ? "rt edge plus read provenance cycle" : "rt edge cycle"),
+    evidence,
     summary: hasReadEvidence ? "Serializable, but not strict-serializable: stale read across realtime order." : "Not strict-serializable: realtime cycle.",
     explanation: hasReadEvidence
       ? "A transaction read an older version even though another transaction had already committed before it began."
@@ -170,17 +176,62 @@ function isWriteSkewCycle(cycle: CycleWitness): boolean {
 }
 
 function evidenceFromCycle(cycle: CycleWitness, pattern: string): IsolationVerdict["evidence"] {
+  const proofEdges = stableCycleEdgeSequence(cycle);
   return {
     kind: "cycle",
     cycleId: cycle.id,
-    edgeIds: cycle.edges.map((edge) => edge.id),
-    edgeKinds: cycle.edges.map((edge) => edge.kind),
+    edgeIds: proofEdges.map((edge) => edge.id),
+    edgeKinds: proofEdges.map((edge) => edge.kind),
     pattern,
   };
 }
 
 function uniqueCycleTransactions(cycle: CycleWitness): string[] {
-  return Array.from(new Set(cycle.transactions)).sort((a, b) => a.localeCompare(b));
+  return stableTransactionIds(cycle.transactions);
+}
+
+function stableCycles(cycles: CycleWitness[]): CycleWitness[] {
+  return cycles.slice().sort(compareCycles);
+}
+
+function compareCycles(left: CycleWitness, right: CycleWitness): number {
+  return (
+    left.edges.length - right.edges.length ||
+    stableTransactionIds(left.transactions).join("\u0000").localeCompare(stableTransactionIds(right.transactions).join("\u0000")) ||
+    stableCycleSignature(left).localeCompare(stableCycleSignature(right)) ||
+    left.id.localeCompare(right.id)
+  );
+}
+
+function stableCycleSignature(cycle: CycleWitness): string {
+  return stableCycleEdgeSequence(cycle).map(edgeStableKey).join("\u0000");
+}
+
+function stableCycleEdgeSequence(cycle: CycleWitness): CycleWitness["edges"] {
+  if (cycle.edges.length <= 1) return cycle.edges.slice();
+  let bestIndex = 0;
+  for (let index = 1; index < cycle.edges.length; index += 1) {
+    const current = rotatedEdgeSignature(cycle.edges, index);
+    const best = rotatedEdgeSignature(cycle.edges, bestIndex);
+    if (current < best) bestIndex = index;
+  }
+  return cycle.edges.slice(bestIndex).concat(cycle.edges.slice(0, bestIndex));
+}
+
+function rotatedEdgeSignature(edges: CycleWitness["edges"], startIndex: number): string {
+  return edges
+    .slice(startIndex)
+    .concat(edges.slice(0, startIndex))
+    .map(edgeStableKey)
+    .join("\u0000");
+}
+
+function edgeStableKey(edge: CycleWitness["edges"][number]): string {
+  return [edge.kind, edge.from, edge.to, edge.key ?? "", edge.id].join("\u0001");
+}
+
+function stableTransactionIds(ids: string[]): string[] {
+  return Array.from(new Set(ids)).sort((a, b) => a.localeCompare(b));
 }
 
 function baseLimitations(mode: IsolationMode): string[] {

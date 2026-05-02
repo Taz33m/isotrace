@@ -200,12 +200,23 @@ async function verifyWorkbench(page: Page, url: string): Promise<void> {
 
   await page.getByTestId("scenario-serial_stock_decrement").click();
   await page.getByRole("heading", { name: "serial_stock_decrement" }).waitFor({ state: "visible" });
+  await page.getByTestId("verdict-panel").filter({ hasText: "Valid serial history" }).waitFor({ state: "visible" });
+  await page.getByTestId("verdict-panel").filter({ hasText: "valid-serial-history" }).waitFor({ state: "visible" });
   await page.getByText("No dependency cycle was found under serializable").waitFor({ state: "visible" });
 
   await page.getByTestId("scenario-write_skew_doctors").click();
   await page.getByRole("heading", { name: "write_skew_doctors" }).waitFor({ state: "visible" });
   await page.getByTestId("verdict-panel").filter({ hasText: "Write skew" }).waitFor({ state: "visible" });
+  await page.getByTestId("verdict-panel").filter({ hasText: "write-skew" }).waitFor({ state: "visible" });
   await page.getByTestId("verdict-panel").filter({ hasText: "T1, T2" }).waitFor({ state: "visible" });
+  const firstVerdictEdge = page.locator("[data-testid^='verdict-edge-']").first();
+  await firstVerdictEdge.waitFor({ state: "visible" });
+  await firstVerdictEdge.click();
+  const selectedVerdictEdgeId = (await firstVerdictEdge.getAttribute("data-testid"))?.replace("verdict-edge-", "");
+  if (!selectedVerdictEdgeId) {
+    throw new Error("UI smoke expected a selectable verdict proof edge");
+  }
+  await page.getByTestId("selected-edge").filter({ hasText: selectedVerdictEdgeId }).waitFor({ state: "visible" });
   await page
     .locator("[data-testid='cycle-card']")
     .filter({ hasText: "Serializable order is impossible" })
