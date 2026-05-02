@@ -193,6 +193,13 @@ async function launchBrowser(chromium: BrowserType): Promise<Browser> {
   throw new BrowserUnavailableError(launchErrors.join("\n"));
 }
 
+async function expectClassContains(page: Page, testId: string, className: string, label: string): Promise<void> {
+  const actual = await page.getByTestId(testId).getAttribute("class");
+  if (!actual?.includes(className)) {
+    throw new Error(`UI smoke expected ${label}: ${testId} did not include ${className}`);
+  }
+}
+
 async function verifyWorkbench(page: Page, url: string): Promise<void> {
   await page.goto(url, { waitUntil: "networkidle" });
   await page.getByTestId("app-shell").waitFor({ state: "visible", timeout: 10_000 });
@@ -217,6 +224,10 @@ async function verifyWorkbench(page: Page, url: string): Promise<void> {
     throw new Error("UI smoke expected a selectable verdict proof edge");
   }
   await page.getByTestId("selected-edge").filter({ hasText: selectedVerdictEdgeId }).waitFor({ state: "visible" });
+  await expectClassContains(page, "history-row-T1", "selectedTxRow", "source transaction row is highlighted");
+  await expectClassContains(page, "history-row-T2", "selectedTxRow", "target transaction row is highlighted");
+  await expectClassContains(page, "history-op-T1-1", "edgeSourceOp", "source read operation is highlighted");
+  await expectClassContains(page, "history-op-T2-2", "edgeTargetOp", "target write operation is highlighted");
   await page
     .locator("[data-testid='cycle-card']")
     .filter({ hasText: "Serializable order is impossible" })

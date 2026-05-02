@@ -154,7 +154,7 @@ export default function App() {
 
           <Panel title={selected.history.name} icon={<Activity size={18} />} className="historyPanel">
             <p className="scenarioDescription">{selected.history.description}</p>
-            <HistoryTable history={selected.history} />
+            <HistoryTable history={selected.history} selectedEdge={selectedEdge} />
           </Panel>
 
           <Panel title="Dependency Graph" icon={<GitBranch size={18} />} className="graphPanel">
@@ -308,7 +308,7 @@ function statusLabel(status: IsolationVerdict["serializable"]["status"]): string
   return "Not evaluated";
 }
 
-function HistoryTable({ history }: { history: History }) {
+function HistoryTable({ history, selectedEdge }: { history: History; selectedEdge: DependencyEdge | null }) {
   return (
     <div className="historyTable" role="table" aria-label="Transaction history">
       <div className="historyRow header" role="row">
@@ -317,13 +317,31 @@ function HistoryTable({ history }: { history: History }) {
         <span>Operations</span>
       </div>
       {history.transactions.map((tx) => (
-        <div className={`historyRow ${(tx.status ?? "committed") !== "committed" ? "ignored" : ""}`} key={tx.id} role="row">
+        <div
+          className={`historyRow ${(tx.status ?? "committed") !== "committed" ? "ignored" : ""} ${isEdgeEndpoint(tx.id, selectedEdge) ? "selectedTxRow" : ""}`}
+          data-testid={`history-row-${tx.id}`}
+          key={tx.id}
+          role="row"
+        >
           <span>
             <strong>{tx.id}</strong>
             <small>{tx.label ?? tx.id}</small>
           </span>
           <span>{typeof tx.begin === "number" ? `${tx.begin}-${tx.commit ?? "?"}` : tx.commit ?? "initial"}</span>
-          <span className="opsList">{tx.ops.map(formatOp).join("; ")}</span>
+          <span className="opsList">
+            {tx.ops.map((op, index) => {
+              const role = operationEdgeRole(tx.id, op, selectedEdge);
+              return (
+                <span
+                  className={`opChip ${role ? `selectedOp ${role}` : ""}`}
+                  data-testid={`history-op-${tx.id}-${index}`}
+                  key={`${tx.id}-${index}`}
+                >
+                  {formatOp(op)}
+                </span>
+              );
+            })}
+          </span>
         </div>
       ))}
     </div>
@@ -333,6 +351,27 @@ function HistoryTable({ history }: { history: History }) {
 function formatOp(op: TxOp): string {
   if (op.type === "read") return `read ${op.key}=${formatJsonValue(op.value)} from ${op.from}`;
   return `write ${op.key}=${formatJsonValue(op.value)}`;
+}
+
+function isEdgeEndpoint(txId: string, edge: DependencyEdge | null): boolean {
+  return edge?.from === txId || edge?.to === txId;
+}
+
+function operationEdgeRole(txId: string, op: TxOp, edge: DependencyEdge | null): "edgeSourceOp" | "edgeTargetOp" | null {
+  if (!edge?.key) return null;
+  if (edge.kind === "ww" && op.type === "write" && op.key === edge.key) {
+    if (txId === edge.from) return "edgeSourceOp";
+    if (txId === edge.to) return "edgeTargetOp";
+  }
+  if (edge.kind === "wr") {
+    if (txId === edge.from && op.type === "write" && op.key === edge.key) return "edgeSourceOp";
+    if (txId === edge.to && op.type === "read" && op.key === edge.key && op.from === edge.from) return "edgeTargetOp";
+  }
+  if (edge.kind === "rw") {
+    if (txId === edge.from && op.type === "read" && op.key === edge.key) return "edgeSourceOp";
+    if (txId === edge.to && op.type === "write" && op.key === edge.key) return "edgeTargetOp";
+  }
+  return null;
 }
 
 function DependencyGraph({
