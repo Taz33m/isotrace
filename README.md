@@ -1,5 +1,9 @@
 # IsoTrace
 
+<p align="center">
+  <img src="assets/isotrace-logo.png" alt="IsoTrace logo" width="120" />
+</p>
+
 <h1 align="center">IsoTrace</h1>
 
 <p align="center">
