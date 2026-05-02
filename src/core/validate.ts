@@ -71,7 +71,8 @@ export function normalizeHistory(history: History): NormalizedHistory {
   committed.forEach((tx, index) => order.set(tx.id, index));
 
   for (const tx of committed) {
-    for (const op of tx.ops) {
+    for (let opIndex = 0; opIndex < tx.ops.length; opIndex += 1) {
+      const op = tx.ops[opIndex];
       if (op.type !== "read") continue;
       if (!txById.has(op.from)) {
         throw new HistoryValidationError(`${tx.id} reads ${op.key} from unknown transaction ${op.from}`);
@@ -80,9 +81,13 @@ export function normalizeHistory(history: History): NormalizedHistory {
       if (!writer || (writer.status ?? "committed") !== "committed") {
         throw new HistoryValidationError(`${tx.id} reads ${op.key} from non-committed transaction ${op.from}`);
       }
-      const write = writer.ops.find((writerOp) => writerOp.type === "write" && writerOp.key === op.key);
+      const writeIndex = writer.ops.findIndex((writerOp) => writerOp.type === "write" && writerOp.key === op.key);
+      const write = writer.ops[writeIndex];
       if (!write || write.type !== "write") {
         throw new HistoryValidationError(`${tx.id} reads ${op.key} from ${op.from}, but ${op.from} does not write that key`);
+      }
+      if (writer.id === tx.id && writeIndex > opIndex) {
+        throw new HistoryValidationError(`${tx.id} reads ${op.key} from its own write before that write appears in ops[]`);
       }
       if (!jsonEqual(write.value, op.value)) {
         throw new HistoryValidationError(

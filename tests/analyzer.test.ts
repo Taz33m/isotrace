@@ -86,6 +86,52 @@ describe("IsoTrace analyzer", () => {
     expect(analyzeHistory(history).ok).toBe(true);
   });
 
+  it("accepts self-reads only after the referenced write appears in operation order", () => {
+    const validSelfRead: History = {
+      name: "valid-self-read",
+      description: "a transaction can read its own earlier write",
+      transactions: [
+        {
+          id: "T0",
+          commit: 0,
+          ops: [{ type: "write", key: "x", value: 0 }],
+        },
+        {
+          id: "T1",
+          begin: 1,
+          commit: 2,
+          ops: [
+            { type: "write", key: "scratch", value: { ok: true } },
+            { type: "read", key: "scratch", value: { ok: true }, from: "T1" },
+          ],
+        },
+      ],
+    };
+    expect(analyzeHistory(validSelfRead).ok).toBe(true);
+
+    const futureSelfRead: History = {
+      name: "future-self-read",
+      description: "a transaction cannot read its own future write",
+      transactions: [
+        {
+          id: "T0",
+          commit: 0,
+          ops: [{ type: "write", key: "x", value: 0 }],
+        },
+        {
+          id: "T1",
+          begin: 1,
+          commit: 2,
+          ops: [
+            { type: "read", key: "scratch", value: 1, from: "T1" },
+            { type: "write", key: "scratch", value: 1 },
+          ],
+        },
+      ],
+    };
+    expect(() => analyzeHistory(futureSelfRead)).toThrow(/reads scratch from its own write before that write appears/);
+  });
+
   it("rejects repeated writes to the same key in one transaction", () => {
     const badHistory: History = {
       name: "bad-repeated-write",
