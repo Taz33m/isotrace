@@ -1,6 +1,7 @@
 import { Activity, AlertTriangle, CheckCircle2, Code2, GitBranch, Play, TerminalSquare } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { analyzeHistory, edgeKindLabel } from "./core/analyzer";
+import { parseHistoryJson } from "./core/artifacts";
 import { formatJsonValue } from "./core/format";
 import type { AnalysisResult, DependencyEdge, EdgeKind, GraphNode, History, TxOp } from "./core/types";
 import { fixtureCatalog } from "./fixtures";
@@ -187,9 +188,9 @@ function analyzeCustomHistory(
   setCustomError: (error: string | null) => void,
 ): void {
   try {
-    const parsed = JSON.parse(text) as History;
-    const result = analyzeHistory(parsed);
-    setCustomHistory(parsed);
+    const { history } = parseHistoryJson(text);
+    const result = analyzeHistory(history);
+    setCustomHistory(history);
     setSelectedSlug("__custom__");
     setStrictMode(result.mode === "strict-serializable");
     setCustomError(null);

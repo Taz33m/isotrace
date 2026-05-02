@@ -1,0 +1,29 @@
+{
+  "name": "portable_invalid_history",
+  "description": "A read operation is missing the required from transaction id.",
+  "transactions": [
+    {
+      "id": "T0",
+      "commit": 0,
+      "ops": [
+        {
+          "type": "write",
+          "key": "counter",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": "T1",
+      "begin": 1,
+      "commit": 2,
+      "ops": [
+        {
+          "type": "read",
+          "key": "counter",
+          "value": 0
+        }
+      ]
+    }
+  ]
+}
