@@ -557,6 +557,11 @@ h1 {
   margin-top: 2px;
 }
 
+.historyRow .orderRank {
+  color: #047857;
+  font-weight: 900;
+}
+
 .historyRow.ignored {
   background: #f8fafc;
   color: #64748b;
@@ -666,6 +671,13 @@ h1 {
   text-anchor: middle;
 }
 
+.nodeRank {
+  fill: #047857;
+  font-size: 10px;
+  font-weight: 900;
+  text-anchor: middle;
+}
+
 .proofEmpty {
   align-items: flex-start;
   color: #166534;
@@ -698,6 +710,22 @@ h1 {
   font-size: 0.86rem;
   font-weight: 900;
   overflow-wrap: anywhere;
+}
+
+.orderWitnessSteps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.orderWitnessSteps span {
+  background: #ffffff;
+  border: 1px solid #a7f3d0;
+  border-radius: 6px;
+  color: #047857;
+  font-size: 0.74rem;
+  padding: 3px 6px;
+  text-transform: none;
 }
 
 .orderWitness small {

@@ -33,6 +33,7 @@ export default function App() {
   const result = useMemo(() => analyzeHistory(selected.history, { strict: strictMode }), [selected.history, strictMode]);
   const cycleEdgeIds = useMemo(() => new Set(result.cycles.flatMap((cycle) => cycle.edges.map((edge) => edge.id))), [result]);
   const selectedEdge = useMemo(() => result.edges.find((edge) => edge.id === selectedEdgeId) ?? null, [result.edges, selectedEdgeId]);
+  const orderPositions = useMemo(() => orderPositionMap(result), [result]);
 
   useEffect(() => {
     const firstCycleEdge = result.cycles[0]?.edges[0]?.id ?? null;
@@ -154,7 +155,7 @@ export default function App() {
 
           <Panel title={selected.history.name} icon={<Activity size={18} />} className="historyPanel">
             <p className="scenarioDescription">{selected.history.description}</p>
-            <HistoryTable history={selected.history} selectedEdge={selectedEdge} />
+            <HistoryTable history={selected.history} orderPositions={orderPositions} selectedEdge={selectedEdge} />
           </Panel>
 
           <Panel title="Dependency Graph" icon={<GitBranch size={18} />} className="graphPanel">
@@ -163,6 +164,7 @@ export default function App() {
               nodes={result.nodes}
               edges={result.edges}
               cycleEdgeIds={cycleEdgeIds}
+              orderPositions={orderPositions}
               onSelectEdge={setSelectedEdgeId}
               selectedEdgeId={selectedEdgeId}
             />
@@ -196,6 +198,10 @@ function expectedVerdict(history: History): string {
   } catch {
     return `${history.transactions.length} tx`;
   }
+}
+
+function orderPositionMap(result: AnalysisResult): Map<string, number> {
+  return new Map(result.orderWitness?.transactions.map((txId, index) => [txId, index + 1]) ?? []);
 }
 
 function analyzeCustomHistory(
@@ -314,7 +320,15 @@ function statusLabel(status: IsolationVerdict["serializable"]["status"]): string
   return "Not evaluated";
 }
 
-function HistoryTable({ history, selectedEdge }: { history: History; selectedEdge: DependencyEdge | null }) {
+function HistoryTable({
+  history,
+  selectedEdge,
+  orderPositions,
+}: {
+  history: History;
+  selectedEdge: DependencyEdge | null;
+  orderPositions: Map<string, number>;
+}) {
   return (
     <div className="historyTable" role="table" aria-label="Transaction history">
       <div className="historyRow header" role="row">
@@ -332,6 +346,11 @@ function HistoryTable({ history, selectedEdge }: { history: History; selectedEdg
           <span>
             <strong>{tx.id}</strong>
             <small>{tx.label ?? tx.id}</small>
+            {orderPositions.has(tx.id) ? (
+              <small className="orderRank" data-testid={`history-order-rank-${tx.id}`}>
+                #{orderPositions.get(tx.id)} witness
+              </small>
+            ) : null}
           </span>
           <span>{typeof tx.begin === "number" ? `${tx.begin}-${tx.commit ?? "?"}` : tx.commit ?? "initial"}</span>
           <span className="opsList">
@@ -384,12 +403,14 @@ function DependencyGraph({
   nodes,
   edges,
   cycleEdgeIds,
+  orderPositions,
   selectedEdgeId,
   onSelectEdge,
 }: {
   nodes: GraphNode[];
   edges: DependencyEdge[];
   cycleEdgeIds: Set<string>;
+  orderPositions: Map<string, number>;
   selectedEdgeId: string | null;
   onSelectEdge: (edgeId: string) => void;
 }) {
@@ -442,10 +463,16 @@ function DependencyGraph({
 
       {nodes.map((node) => {
         const position = positions.get(node.id);
+        const orderPosition = orderPositions.get(node.id);
         if (!position) return null;
         return (
           <g key={node.id} transform={`translate(${position.x - 45}, ${position.y - 24})`}>
             <rect className="graphNode" width="90" height="48" rx="8" />
+            {orderPosition ? (
+              <text className="nodeRank" data-testid={`graph-order-rank-${node.id}`} x="74" y="15">
+                #{orderPosition}
+              </text>
+            ) : null}
             <text className="nodeId" x="45" y="21">
               {node.id}
             </text>
@@ -548,6 +575,13 @@ function CycleProof({
           <div className="orderWitness" data-testid="order-witness">
             <span>Order witness</span>
             <code>{result.orderWitness.transactions.join(" -> ")}</code>
+            <div className="orderWitnessSteps" aria-label="Order witness transaction ranks">
+              {result.orderWitness.transactions.map((txId, index) => (
+                <span data-testid={`order-witness-step-${txId}`} key={txId}>
+                  #{index + 1} {txId}
+                </span>
+              ))}
+            </div>
             <small>{result.orderWitness.summary}</small>
           </div>
         ) : null}
