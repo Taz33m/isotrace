@@ -162,9 +162,32 @@ function expectFixtureResult(result: AnalysisResult, contract: FixtureContract, 
     evidenceKind: result.verdict.evidence.kind,
     edgeKinds: result.verdict.evidence.edgeKinds,
     cycleCount: result.cycles.length,
+    orderWitness: result.orderWitness?.transactions ?? null,
     kindCounts: result.kindCounts,
   };
   assertJsonEqual(actual, contract.expected, `${contract.path} ${source} expected verdict`);
+  expectOrderWitnessConsistent(result, contract, source);
+}
+
+function expectOrderWitnessConsistent(result: AnalysisResult, contract: FixtureContract, source: string): void {
+  const witness = result.orderWitness;
+  if (result.ok && witness === null) {
+    throw new Error(`${contract.path} ${source} expected order witness for clean result`);
+  }
+  if (!result.ok && witness !== null) {
+    throw new Error(`${contract.path} ${source} unexpected order witness for violating result`);
+  }
+  if (witness === null) return;
+
+  assertJsonEqual(witness.edgeIds, result.edges.map((edge) => edge.id), `${contract.path} ${source} order witness edge ids`);
+  const positions = new Map(witness.transactions.map((txId, index) => [txId, index]));
+  for (const edge of result.edges) {
+    const from = positions.get(edge.from);
+    const to = positions.get(edge.to);
+    if (from === undefined || to === undefined || from >= to) {
+      throw new Error(`${contract.path} ${source} order witness violates ${edge.kind} edge ${edge.id}: ${edge.from} -> ${edge.to}`);
+    }
+  }
 }
 
 function expectInvalidHistoryExample(path: string, expectedMessage: string): void {

@@ -6,7 +6,7 @@ import { analyzeHistory } from "../src/core/analyzer";
 import { parseHistoryJson, validateAnalysisReportArtifact, validateBenchmarkReportArtifact, validateHistoryArtifact } from "../src/core/artifacts";
 import { makeAnalysisReport } from "../src/core/report";
 import type { History } from "../src/core/types";
-import { makeFixtureCatalog } from "../src/fixtures/manifest";
+import { makeFixtureCatalog, type FixtureCatalog } from "../src/fixtures/manifest";
 
 describe("portable artifacts", () => {
   it("validates every checked-in fixture through the shared history schema path", () => {
@@ -154,6 +154,9 @@ describe("portable artifacts", () => {
     ) as unknown;
     expect(second).toEqual(first);
     expect(first).toEqual(makeFixtureCatalog());
+    const catalog = first as FixtureCatalog;
+    expect(catalog.fixtures.find((fixture) => fixture.historyName === "strict_serial_handoff")?.orderWitness).toEqual(["T0", "T1", "T2"]);
+    expect(catalog.fixtures.find((fixture) => fixture.historyName === "write_skew_doctors")?.orderWitness).toBeNull();
   });
 
   it("exposes a batch artifact check command", () => {

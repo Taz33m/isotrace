@@ -16,6 +16,7 @@
         "evidenceKind": "validation-note",
         "edgeKinds": [],
         "cycleCount": 0,
+        "orderWitness": ["T0", "T2"],
         "kindCounts": {
           "ww": 0,
           "wr": 1,
@@ -39,6 +40,7 @@
         "evidenceKind": "none",
         "edgeKinds": [],
         "cycleCount": 0,
+        "orderWitness": ["T0", "T1", "T2"],
         "kindCounts": {
           "ww": 2,
           "wr": 2,
@@ -62,6 +64,7 @@
         "evidenceKind": "cycle",
         "edgeKinds": ["rt", "rw"],
         "cycleCount": 1,
+        "orderWitness": null,
         "kindCounts": {
           "ww": 1,
           "wr": 1,
@@ -85,6 +88,7 @@
         "evidenceKind": "none",
         "edgeKinds": [],
         "cycleCount": 0,
+        "orderWitness": ["T0", "T1", "T2"],
         "kindCounts": {
           "ww": 2,
           "wr": 2,
@@ -108,6 +112,7 @@
         "evidenceKind": "cycle",
         "edgeKinds": ["rw", "rw"],
         "cycleCount": 1,
+        "orderWitness": null,
         "kindCounts": {
           "ww": 2,
           "wr": 4,

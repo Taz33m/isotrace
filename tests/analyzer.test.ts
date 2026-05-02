@@ -47,6 +47,7 @@ describe("IsoTrace analyzer", () => {
     expect(result.orderWitness?.mode).toBe("strict-serializable");
     expect(result.orderWitness?.transactions).toEqual(["T0", "T1", "T2"]);
     expectOrderSatisfiesEdges(result.orderWitness?.transactions ?? [], result.edges.map((edge) => [edge.from, edge.to]));
+    expect(result.edges.some((edge) => edge.kind === "rt" && witnessPlaces(result.orderWitness?.transactions ?? [], edge.from, edge.to))).toBe(true);
   });
 
   it("ignores aborted transactions when constructing committed-version order", () => {
@@ -245,4 +246,11 @@ function expectOrderSatisfiesEdges(order: string[], edges: Array<[string, string
   for (const [from, to] of edges) {
     expect(positions.get(from)!).toBeLessThan(positions.get(to)!);
   }
+}
+
+function witnessPlaces(order: string[], from: string, to: string): boolean {
+  const positions = new Map(order.map((txId, index) => [txId, index]));
+  const fromPosition = positions.get(from);
+  const toPosition = positions.get(to);
+  return fromPosition !== undefined && toPosition !== undefined && fromPosition < toPosition;
 }

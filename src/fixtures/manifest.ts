@@ -26,6 +26,7 @@ export interface FixtureExpectation {
   evidenceKind: IsolationVerdictEvidence["kind"];
   edgeKinds: EdgeKind[];
   cycleCount: number;
+  orderWitness: string[] | null;
   kindCounts: Record<EdgeKind, number>;
 }
 
@@ -51,6 +52,7 @@ export interface FixtureCatalogEntry {
     edgeKinds: EdgeKind[];
     cycleCount: number;
   };
+  orderWitness: string[] | null;
   kindCounts: Record<EdgeKind, number>;
 }
 
@@ -85,6 +87,7 @@ export function makeFixtureCatalog(manifest = readFixtureManifest()): FixtureCat
         edgeKinds: contract.expected.edgeKinds,
         cycleCount: contract.expected.cycleCount,
       },
+      orderWitness: contract.expected.orderWitness,
       kindCounts: contract.expected.kindCounts,
     })),
   };
