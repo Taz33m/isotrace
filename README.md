@@ -3,7 +3,15 @@
 ![TypeScript strict](https://img.shields.io/badge/TypeScript-strict-blue)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green)
 
+Artifact paper: [paper/isotrace.pdf](paper/isotrace.pdf)
+
 IsoTrace is a local transaction-history analyzer for explicit key-value and modeled predicate-read histories. It builds a dependency graph and explains serializability or strict-serializability failures as semantic verdicts with concrete cycle witnesses.
+
+## Problem IsoTrace Solves
+
+Given an explicit transaction history, IsoTrace answers whether isolation failed and which dependency cycle proves it.
+
+Before IsoTrace, a trace may contain reads, writes, predicate rows, commit times, and realtime facts, but the actual cause of the isolation failure is hidden across those pieces of evidence. After IsoTrace, the same trace has a verdict, anomaly label, implicated transactions, proof edges, cycle witness, and row-level evidence that can be inspected in the CLI, JSON report, or browser workbench.
 
 ## Technical Seam
 
@@ -37,33 +45,43 @@ npm run demo:predicate2
 npm run smoke:ui
 ```
 
+## 90-Second Demo Loop
+
+The clearest demo is the explicit predicate phantom fixture:
+
+```bash
+npm ci
+npm run demo:phantom
+```
+
+Look for these lines in the output:
+
+- `Result: VIOLATION`
+- `Serializable: FAIL`
+- `Anomaly: Explicit predicate phantom [predicate-dependency-cycle]`
+- `Implicated transactions: T1, T2`
+- `Proof edges: e3 -> e4 (prw -> prw)`
+- `Cycle witnesses`
+- `before:` and `after:` row evidence for each `prw` edge
+
+Then open the workbench:
+
+```bash
+npm run dev
+```
+
+Visit `http://127.0.0.1:5173/`, select **Explicit predicate phantom**, click a `prw` proof edge, and inspect the predicate row evidence. The browser surface shows the same analyzer result as the CLI: verdict, graph, cycle proof, selected edge, and before/after row evidence.
+
+Secondary proof commands:
+
+```bash
+npm run smoke:ui
+npm run artifacts:check
+```
+
 ## Demo
 
-Run the write-skew demo:
-
-```bash
-npm run demo
-```
-
-The fixture models two doctors who both read that the other doctor is on call, then write disjoint keys to go off call. There is no write-write conflict between their writes, but IsoTrace finds the `rw` / `rw` dependency cycle.
-
-Run the strict stale-read demo:
-
-```bash
-npm run demo:strict
-```
-
-That fixture is serializable if realtime order is ignored, but strict mode adds a realtime edge and exposes the stale read.
-
-Run the constrained SQL trace demo:
-
-```bash
-npm run demo:sql
-```
-
-That trace parses a small subset of SQL event syntax, materializes returned `SELECT` rows into explicit read-from operations, and finds the same write-skew shape. It does not connect to a database or infer phantoms from non-returned rows.
-
-Run the explicit predicate-read phantom demo:
+Hero trace:
 
 ```bash
 npm run demo:phantom
@@ -71,13 +89,22 @@ npm run demo:phantom
 
 That fixture models two predicate reads and two relational writes whose row-membership changes create a `prw` / `prw` cycle. The proof includes before/after row evidence from the supplied history. This is explicit predicate-read evidence, not SQL range inference.
 
-Run the composite predicate/delete demo:
+Supporting demos:
 
 ```bash
+npm run demo
+npm run demo:strict
+npm run demo:sql
 npm run demo:predicate2
 ```
 
-That fixture uses explicit `all` predicates plus modeled deletes. The proof records returned-row evidence before the delete and `null` after the delete. It still relies on supplied row evidence, not database snapshot inference.
+`npm run demo` shows write skew: two doctors both read that the other doctor is on call, then write disjoint keys to go off call. There is no write-write conflict between their writes, but IsoTrace finds the `rw` / `rw` dependency cycle.
+
+`npm run demo:strict` shows a stale read that is serializable if realtime order is ignored, but fails strict serializability once the realtime edge is included.
+
+`npm run demo:sql` parses a small subset of annotated SQL event syntax, materializes returned `SELECT` rows into explicit read-from operations, and finds the same write-skew shape. It does not connect to a database or infer phantoms from non-returned rows.
+
+`npm run demo:predicate2` uses explicit `all` predicates plus modeled deletes. The proof records returned-row evidence before the delete and `null` after the delete. It still relies on supplied row evidence, not database snapshot inference.
 
 Open the workbench:
 
