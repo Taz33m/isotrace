@@ -1,4 +1,4 @@
-import { execFileSync, spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { execFileSync, spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { createServer as createNetServer } from "node:net";
 import type { Browser, BrowserType, Page } from "playwright";
 
@@ -40,6 +40,10 @@ function runCliProofSmoke(): void {
   assertIncludes(strict, "[rt/realtime]", "strict demo includes realtime edge proof");
   assertIncludes(strict, "facts: source fact: T1 committed before T2 began", "strict demo prints realtime proof facts");
 
+  const violationGate = runIsoTraceCliForStatus(["fixtures/write_skew_doctors.json", "--fail-on-violation"], 2);
+  assertIncludes(violationGate.stdout, "Result: VIOLATION", "fail-on-violation prints proof output before exiting 2");
+  assertIncludes(violationGate.stdout, "Anomaly: Write skew [write-skew]", "fail-on-violation keeps semantic verdict text");
+
   const json = JSON.parse(runIsoTraceCli(["fixtures/write_skew_doctors.json", "--json"])) as {
     report?: { schema?: string };
     result?: { validationNotes?: string[]; cycles?: unknown[] };
@@ -68,6 +72,18 @@ function runIsoTraceCli(args: string[]): string {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
   });
+}
+
+function runIsoTraceCliForStatus(args: string[], expectedStatus: number): { stdout: string; stderr: string } {
+  const result = spawnSync(process.execPath, ["--import", "tsx", "src/cli.ts", ...args], {
+    cwd: process.cwd(),
+    encoding: "utf8",
+  });
+  if (result.error) throw result.error;
+  if (result.status !== expectedStatus) {
+    throw new Error(`expected CLI status ${expectedStatus}, got ${String(result.status)}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+  }
+  return { stdout: result.stdout, stderr: result.stderr };
 }
 
 async function runBrowserSmoke(): Promise<void> {
