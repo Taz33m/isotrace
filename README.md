@@ -1,161 +1,211 @@
 # IsoTrace
 
-![TypeScript strict](https://img.shields.io/badge/TypeScript-strict-blue)
-![License: MIT](https://img.shields.io/badge/License-MIT-green)
+<h1 align="center">IsoTrace</h1>
 
-Artifact paper: [paper/isotrace.pdf](paper/isotrace.pdf)
+<p align="center">
+  <strong>Dependency graph witnesses for transaction isolation failures.</strong>
+</p>
 
-IsoTrace is a local transaction-history analyzer for explicit key-value and modeled predicate-read histories. It builds a dependency graph and explains serializability or strict-serializability failures as semantic verdicts with concrete cycle witnesses.
+<p align="center">
+  <a href="https://youtu.be/C0MLM3jucMY">Demo Video</a> ·
+  <a href="paper/isotrace.pdf">Artifact Paper</a> ·
+  <a href="paper/isotrace.tex">Paper Source</a>
+</p>
 
-## Problem IsoTrace Solves
+<p align="center">
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License" />
+  <img src="https://img.shields.io/badge/TypeScript-5.x-blue" alt="TypeScript 5.x" />
+  <img src="https://img.shields.io/badge/Vite-React-646CFF" alt="Vite React" />
+  <img src="https://img.shields.io/badge/tests-86%20passing-brightgreen" alt="86 passing tests" />
+  <img src="https://img.shields.io/badge/fixtures-7%20contracts-brightgreen" alt="7 fixture contracts" />
+  <a href="https://youtu.be/C0MLM3jucMY"><img src="https://img.shields.io/badge/demo-video-red" alt="Demo video" /></a>
+  <img src="https://img.shields.io/badge/claims-bounded-important" alt="Bounded claims" />
+</p>
 
-Given an explicit transaction history, IsoTrace answers whether isolation failed and which dependency cycle proves it.
+<p align="center">
+  <a href="https://youtu.be/C0MLM3jucMY">
+    <img src="assets/isotrace-preview.png" alt="IsoTrace dependency cycle demo preview" width="780" />
+  </a>
+</p>
 
-Before IsoTrace, a trace may contain reads, writes, predicate rows, commit times, and realtime facts, but the actual cause of the isolation failure is hidden across those pieces of evidence. After IsoTrace, the same trace has a verdict, anomaly label, implicated transactions, proof edges, cycle witness, and row-level evidence that can be inspected in the CLI, JSON report, or browser workbench.
+IsoTrace is a bounded isolation-analysis workbench for explicit transaction histories. It turns point reads, writes, predicate reads, and realtime order into a dependency graph. If the graph contains a cycle, IsoTrace explains the isolation failure as a concrete witness: which transactions are implicated, which edges form the cycle, and which read/write or predicate facts produced those edges.
 
-## Technical Seam
+> A transaction can look valid in isolation while the full history has no legal serial order. IsoTrace makes that failure inspectable.
 
-Transaction isolation failures are hard to inspect because the evidence is spread across reads, writes, version order, and realtime order. A history that looks harmless row-by-row can be impossible to serialize once read-write anti-dependencies are connected. IsoTrace focuses on that hard middle layer: turn an explicit history into graph edges that can be tested, rendered, and audited.
+## Why This Matters
 
-This is inspired by dependency-graph approaches used in database consistency work such as Adya-style serialization graphs and Jepsen/Elle-style anomaly checking. IsoTrace is much smaller: it does not run a database workload and does not certify database behavior. It analyzes local JSON histories where each point read already names the transaction version it observed, plus a narrow explicit predicate-read model where row membership evidence is supplied by the fixture.
+Transaction isolation failures are global shape problems. A local transaction can read a plausible state and make a plausible write, while the full history has no serial order that can explain every observed fact. Write skew, stale reads, and predicate-style phantom evidence are especially hard to inspect manually because the proof is spread across read provenance, write version order, predicate row membership, and realtime constraints.
 
-## Why This Is Hard
-
-The analyzer has to reconstruct several edge classes without inventing facts:
-
-- `ww`: per-key write version order
-- `wr`: a transaction reads a version written by another transaction
-- `rw`: a transaction read an older version before another transaction overwrote that key
-- `prw`: an explicit predicate read saw one row-membership set before another transaction changed a modeled row's membership
-- `rt`: strict-serializability realtime order
-
-A cycle in these edges is the proof of a violation. For clean evaluated graphs, IsoTrace reports a deterministic topological transaction order that satisfies the dependency edges.
-
-IsoTrace also emits a conservative semantic verdict: serializable pass/fail, strict-serializable pass/fail/not-evaluated, anomaly label, implicated transactions, proof edge sequence, and bounded limitations. Supported labels are intentionally narrow: write skew, explicit predicate phantom, strict stale read, generic dependency cycle, valid serial history, and aborted write ignored. This is not full Elle compatibility or complete Adya anomaly coverage.
+IsoTrace makes that proof concrete. The hard object is the dependency graph. Histories go in; `ww`, `wr`, `rw`, `prw`, and `rt` edges come out; cycles become semantic verdicts; proof edges remain linked to the exact facts that created them. The claims are intentionally bounded so the artifact stays auditable.
 
 ## Quick Start
 
 ```bash
 npm ci
 npm run check
-npm run demo
-npm run demo:sql
-npm run demo:phantom
-npm run demo:predicate2
 npm run smoke:ui
+npm run dev
 ```
+
+Open `http://127.0.0.1:5173/` to use the local workbench.
 
 ## 90-Second Demo Loop
 
-The clearest demo is the explicit predicate phantom fixture:
+The fastest proof path is the write-skew demo used in the video:
 
 ```bash
-npm ci
-npm run demo:phantom
+npm run demo
 ```
 
-Look for these lines in the output:
+Look for:
 
 - `Result: VIOLATION`
-- `Serializable: FAIL`
-- `Anomaly: Explicit predicate phantom [predicate-dependency-cycle]`
+- `Anomaly: Write skew [write-skew]`
 - `Implicated transactions: T1, T2`
-- `Proof edges: e3 -> e4 (prw -> prw)`
+- `Proof edges: e5 -> e7 (rw -> rw)`
 - `Cycle witnesses`
-- `before:` and `after:` row evidence for each `prw` edge
 
-Then open the workbench:
+Then launch the workbench:
 
 ```bash
 npm run dev
 ```
 
-Visit `http://127.0.0.1:5173/`, select **Explicit predicate phantom**, click a `prw` proof edge, and inspect the predicate row evidence. The browser surface shows the same analyzer result as the CLI: verdict, graph, cycle proof, selected edge, and before/after row evidence.
-
-Secondary proof commands:
-
-```bash
-npm run smoke:ui
-npm run artifacts:check
-```
-
-## Demo
-
-Hero trace:
-
-```bash
-npm run demo:phantom
-```
-
-That fixture models two predicate reads and two relational writes whose row-membership changes create a `prw` / `prw` cycle. The proof includes before/after row evidence from the supplied history. This is explicit predicate-read evidence, not SQL range inference.
+Select `write_skew_doctors`, inspect the `Isolation Diagnosis` panel, and click an `rw` proof edge. The graph, edge table, selected edge, and transaction operation rows all point back to the same witness.
 
 Supporting demos:
 
 ```bash
-npm run demo
 npm run demo:strict
-npm run demo:sql
+npm run demo:phantom
 npm run demo:predicate2
+npm run demo:sql
 ```
 
-`npm run demo` shows write skew: two doctors both read that the other doctor is on call, then write disjoint keys to go off call. There is no write-write conflict between their writes, but IsoTrace finds the `rw` / `rw` dependency cycle.
+- `npm run demo:strict`: strict stale read using an `rt` plus `rw` cycle.
+- `npm run demo:phantom`: explicit predicate phantom-style dependency using `prw` / `prw` proof rows.
+- `npm run demo:predicate2`: composite predicates plus modeled deletes.
+- `npm run demo:sql`: constrained annotated SQL trace import, not general SQL parsing.
 
-`npm run demo:strict` shows a stale read that is serializable if realtime order is ignored, but fails strict serializability once the realtime edge is included.
+## What It Implements
 
-`npm run demo:sql` parses a small subset of annotated SQL event syntax, materializes returned `SELECT` rows into explicit read-from operations, and finds the same write-skew shape. It does not connect to a database or infer phantoms from non-returned rows.
-
-`npm run demo:predicate2` uses explicit `all` predicates plus modeled deletes. The proof records returned-row evidence before the delete and `null` after the delete. It still relies on supplied row evidence, not database snapshot inference.
-
-Open the workbench:
-
-```bash
-npm run dev
-```
-
-Then visit `http://127.0.0.1:5173/`. The first screen shows the fixture, graph, edge table, and cycle proof.
-
-The workbench also accepts pasted history JSON in the `Custom History` editor. Paste a CLI-compatible history, click `Analyze JSON`, and the same graph, edge table, validation notes, and cycle witness update in place.
+| Component | What it does | Why it matters |
+|---|---|---|
+| Explicit history model | Represents transactions, reads, writes, predicate reads, timestamps, and aborted transactions | Keeps the analyzer deterministic and inspectable |
+| Runtime + schema validation | Validates JSON histories, examples, and reports | Rejects ambiguous evidence instead of guessing |
+| Dependency graph builder | Builds `ww`, `wr`, `rw`, `prw`, and `rt` edges | Turns history facts into proof structure |
+| Cycle detector | Finds deterministic cycle witnesses and clean topological order witnesses | Shows why no serial order exists, or why one does |
+| Semantic verdicts | Labels supported outcomes: write skew, strict stale read, dependency cycle, valid serial history, aborted-write handling, explicit predicate phantom-style evidence | Makes graph output readable without hiding the proof |
+| Predicate proof rows | Stores before/after membership evidence for `prw` edges | Makes phantom-style claims portable and bounded |
+| CLI reports | Prints human proof output or JSON report envelopes | Enables reproducible terminal workflows |
+| Fixture contracts | Pins expected verdicts, edge kinds, cycle counts, and order witnesses | Prevents regression drift |
+| React workbench | Visualizes histories, graph edges, verdicts, proof edges, and custom JSON imports | Makes the hard graph object legible |
+| Headless UI smoke | Runs CLI proof checks and browser smoke without the in-app browser | Keeps the demo path automation-friendly |
+| Benchmark smoke | Runs generated serial histories at several sizes | Catches gross analyzer regressions without making performance claims |
 
 ## Architecture
 
-- `src/core/validate.ts`: runtime validation for history shape, timestamps, read provenance, and v1 modeling constraints.
-- `src/core/analyzer.ts`: dependency graph construction and anomaly classification.
-- `src/core/graph.ts`: Tarjan strongly connected components and cycle extraction.
-- `src/core/explain.ts`: CLI proof formatting.
-- `src/sql/trace.ts`: constrained SQL trace importer for annotated local traces.
-- `src/cli.ts`: local JSON analyzer.
-- `src/bench/bench.ts`: deterministic synthetic-history benchmark smoke.
-- `src/App.tsx`: browser workbench over the same analyzer.
-- `fixtures/*.json`: deterministic synthetic examples.
+```mermaid
+flowchart LR
+    A[Explicit History JSON] --> B[Runtime + Schema Validation]
+    B --> C[Dependency Graph Builder]
+    C --> D[Cycle / Order Witness]
+    D --> E[Semantic Verdict]
+    E --> F[CLI Proof]
+    E --> G[JSON Report]
+    E --> H[React Workbench]
+    I[Fixture Manifest] --> J[Artifact Checker]
+    G --> J
+    H --> K[Headless UI Smoke]
+```
 
-## Input Model
+Core paths:
 
-IsoTrace expects JSON histories like:
+- `src/core/analyzer.ts`: graph construction.
+- `src/core/graph.ts`: SCC, cycle extraction, topological order.
+- `src/core/verdict.ts`: bounded semantic verdicts.
+- `src/core/predicate.ts`: explicit predicate evaluation.
+- `src/core/report.ts`: JSON report envelopes.
+- `src/sql/trace.ts`: constrained annotated SQL trace importer.
+- `src/cli.ts`: local analyzer CLI.
+- `src/App.tsx`: React workbench over the same analyzer.
+- `src/smoke/ui-smoke.ts`: CLI plus headless browser smoke.
+
+## Current Artifact Proof
+
+All results below were produced by local commands in this checkout.
+
+| Proof surface | Verified result |
+|---|---|
+| Test suite | `10` test files, `86` tests passing via `npm run check` |
+| Fixture contracts | `7` checked by `npm run artifacts:check` |
+| Examples | `3` portable examples checked |
+| JSON reports | Generated fixture reports and CLI JSON reports validate against schemas |
+| Production build | Vite build succeeds inside `npm run check` |
+| Benchmark smoke | Generated serial histories run inside `npm run check` |
+| UI smoke | CLI proof checks and Playwright browser smoke pass via `npm run smoke:ui` |
+| Audit | `npm audit --audit-level=moderate` reports `0` vulnerabilities |
+
+`npm run artifacts:check` validates fixture coverage, fixture verdict contracts, examples, generated fixture reports, CLI JSON reports, fixture catalog output, and the CI workflow file.
+
+## Command Surface
+
+| Command | Purpose |
+|---|---|
+| `npm ci` | Install locked dependencies |
+| `npm run check` | Typecheck, tests, artifact check, production build, benchmark smoke |
+| `npm run smoke:ui` | CLI proof checks plus headless workbench smoke |
+| `npm run demo` | Write-skew proof over `fixtures/write_skew_doctors.json` |
+| `npm run demo:strict` | Strict stale-read proof over `fixtures/stale_read_strict.json` |
+| `npm run demo:phantom` | Explicit predicate phantom-style proof over `fixtures/phantom_predicate_cycle.json` |
+| `npm run demo:predicate2` | Composite predicate delete proof over `fixtures/composite_predicate_delete_cycle.json` |
+| `npm run demo:sql` | Constrained annotated SQL trace import demo |
+| `npm run artifacts:check` | Validate fixture contracts, examples, reports, schemas, catalog, CI workflow |
+| `npm run fixtures` | Print checked-in fixture catalog |
+| `npm run bench` | Run deterministic benchmark smoke |
+| `npm run analyze -- <file>` | Analyze a custom history file |
+| `npm run analyze -- <file> --validate` | Validate a history without running analysis |
+| `npm run analyze -- <file> --json` | Emit JSON report envelope |
+| `npm run analyze -- <trace.sql> --sql-trace` | Import constrained annotated SQL trace syntax |
+| `npm run dev` | Launch the Vite workbench at `127.0.0.1` |
+| `npm run build` | Typecheck and build the frontend |
+
+## Fixture Catalog
+
+Fixtures are synthetic, deterministic examples. They are product proof fixtures, not production traces.
+
+| Fixture | Expected verdict | Key evidence |
+|---|---|---|
+| `aborted_write_ignored.json` | `aborted-write-ignored` | Aborted transaction excluded; clean order witness `T0 -> T2` |
+| `composite_predicate_delete_cycle.json` | `predicate-dependency-cycle` | `prw/prw` cycle from composite predicates and modeled deletes |
+| `serial_stock_decrement.json` | `valid-serial-history` | Clean order witness `T0 -> T1 -> T2` |
+| `stale_read_strict.json` | `strict-stale-read` | `rt/rw` cycle under strict mode |
+| `strict_serial_handoff.json` | `valid-serial-history` | Strict clean order witness `T0 -> T1 -> T2` |
+| `phantom_predicate_cycle.json` | `predicate-dependency-cycle` | `prw/prw` cycle with before/after predicate row evidence |
+| `write_skew_doctors.json` | `write-skew` | `rw/rw` cycle between `T1` and `T2` |
+
+List the full catalog:
+
+```bash
+npm run fixtures
+```
+
+## Custom Histories
+
+Users can paste or import JSON histories in the workbench. The same runtime validation path is used by the CLI and UI. Unsupported or ambiguous evidence is rejected rather than guessed.
+
+Point reads must name read provenance:
 
 ```json
 {
-  "name": "example",
-  "description": "short scenario",
-  "mode": "serializable",
-  "transactions": [
-    {
-      "id": "T0",
-      "commit": 0,
-      "ops": [{ "type": "write", "key": "x", "value": 0 }]
-    },
-    {
-      "id": "T1",
-      "begin": 1,
-      "commit": 2,
-      "ops": [{ "type": "read", "key": "x", "value": 0, "from": "T0" }]
-    }
-  ]
+  "type": "read",
+  "key": "doctor/bob_on_call",
+  "value": true,
+  "from": "T0"
 }
 ```
 
-Each point read must name the transaction version it observed with `from`. The referenced writer must be committed and must have written the same key and value. For v1, a transaction may write a key at most once.
-
-Predicate reads use an explicit operation, not SQL parsing:
+Predicate reads are explicit modeled operations:
 
 ```json
 {
@@ -166,13 +216,25 @@ Predicate reads use an explicit operation, not SQL parsing:
 }
 ```
 
-Predicates may be leaves (`column`, `op`, `value`) or explicit composites with `all`, `any`, and `not`. Writes may carry relational metadata (`table`, `rowId`, `fields`) plus optional `mutation`, `rowBefore`, and `rowAfter` so the analyzer can evaluate modeled insert/update/delete membership changes.
+Writes can carry relational row evidence for predicate membership checks:
 
-Version order is explicit rather than inferred from read values. `T0` is reserved for an initial seed transaction when present; its optional `commit` is allowed but does not force the rest of the fixture into timestamped ordering. For committed transactions other than `T0`, either every transaction supplies a numeric `commit` and IsoTrace orders versions by commit time, or every transaction omits `commit` and IsoTrace uses fixture order. Mixed explicit/missing commits among non-initial committed transactions are rejected because the version order would be ambiguous.
+```json
+{
+  "type": "write",
+  "key": "doctors/bob/on_call",
+  "value": true,
+  "table": "doctors",
+  "rowId": "bob",
+  "fields": { "on_call": true },
+  "mutation": "update"
+}
+```
+
+See `examples/valid_history.json` and `examples/invalid_history_missing_from.json` for portable examples.
 
 ## SQL Trace Import
 
-`--sql-trace` accepts a deliberately small local trace syntax:
+`--sql-trace` accepts a deliberately small annotated trace syntax:
 
 ```sql
 BEGIN T1 AT 1 PROCESS worker-a
@@ -181,76 +243,47 @@ T1: UPDATE doctors SET on_call = false WHERE id = 'alice'
 COMMIT T1 AT 2
 ```
 
-Supported statements are `BEGIN`, `COMMIT`, `ROLLBACK`, `INSERT INTO ... VALUES ...`, single-column `UPDATE ... SET ... WHERE id = ...`, and `SELECT cols FROM table WHERE predicate -> JSON rows`. Each returned `SELECT` row must include `_from` provenance and `id` or `_id`. IsoTrace records predicate evidence on generated point reads and relational metadata on generated writes. This is annotated trace import, not general SQL parsing or phantom inference.
+Supported statements are `BEGIN`, `COMMIT`, `ROLLBACK`, `INSERT INTO ... VALUES ...`, single-column `UPDATE ... SET ... WHERE id = ...`, and `SELECT cols FROM table WHERE predicate -> JSON rows`. Returned `SELECT` rows must include `_from` provenance and `id` or `_id`.
 
-## Commands
+This importer materializes explicit history evidence. It is not a live database adapter, not a general SQL parser, and not phantom inference from non-returned rows.
 
-```bash
-npm install
-npm run typecheck
-npm test
-npm run build
-npm run demo
-npm run demo:strict
-npm run demo:sql
-npm run demo:phantom
-npm run demo:predicate2
-npm run fixtures
-npm run bench
-npm run bench -- --json
-npm run smoke:ui
-npm run artifacts:check
-npm run analyze -- --fixtures --json
-npm run analyze -- examples/valid_history.json --validate
-npm run analyze -- examples/write_skew_sql_trace.sql --sql-trace
-npm run analyze -- fixtures/write_skew_doctors.json --json
-npm run analyze -- fixtures/phantom_predicate_cycle.json --json
-npm run analyze -- fixtures/composite_predicate_delete_cycle.json --json
-```
+## Artifact Paper
 
-`npm run check` runs typecheck, tests, production build, and the benchmark smoke. The `--json` CLI mode emits a report envelope with schema version, tool version, command, runtime, git state, input byte count, input SHA-256, and the full analysis result. That result includes the full input history, so do not use it for histories containing secrets unless printing those values is acceptable.
+PDF: [`paper/isotrace.pdf`](paper/isotrace.pdf)
+Source: [`paper/isotrace.tex`](paper/isotrace.tex)
 
-`--fixtures` lists checked-in demo histories, expected verdict contracts, and reproduction commands. `--fail-on-violation` exits with status `2` after printing the human proof or JSON report, which makes analyzer violations usable as a CI gate. `--validate` checks a history file against `schemas/history.schema.json` and IsoTrace's semantic constraints without running analysis. Analyzer JSON reports are shaped by `schemas/report.schema.json` and include structured predicate proof rows for `prw` edges. Benchmark JSON reports are shaped by `schemas/benchmark.schema.json`. `npm run artifacts:check` validates checked-in fixtures, fixture verdict contracts, portable examples, generated analyzer reports, CLI JSON reports, and the CLI fixture catalog.
+The paper documents the model, dependency graph construction, verdict layer, predicate-read evidence, fixture table, limitations, and reproducibility commands.
 
-`npm run smoke:ui` runs CLI proof checks first, then launches a local Vite workbench with Playwright when a headless browser is available. It verifies fixture selection, custom JSON import, custom validation errors, and a cycle witness without using the in-app browser.
+## Claims And Non-Claims
 
-## Test And Benchmark Proof
+Claims:
 
-The test suite covers:
+- Reconstructs supported dependency edges from explicit histories: `ww`, `wr`, `rw`, `prw`, and `rt`.
+- Emits supported semantic verdicts from deterministic graph evidence.
+- Validates checked-in fixtures, examples, schemas, report envelopes, and fixture contracts.
+- Produces reproducible CLI, JSON, and browser workbench proof surfaces.
 
-- write-skew `rw` cycle detection
-- serial history acceptance
-- serializable versus strict-serializable stale-read behavior
-- aborted transaction exclusion
-- malformed read provenance
-- repeated same-key writes in one transaction
-- explicit predicate evaluator and `prw` edge creation/exclusion
-- predicate-dependency-cycle fixture and report schema validation
-- invalid statuses, ambiguous commit order, and invalid timestamps
-- graph SCC and cycle extraction
+Non-claims:
 
-The benchmark uses generated serial histories to smoke-test graph construction and cycle search at increasing sizes. The reported wall-clock timings are local smoke measurements, not production performance claims.
-
-`npm run bench -- --json` emits the same benchmark rows inside a provenance envelope with benchmark settings. The timing rows are still smoke measurements; the provenance exists so a run can be attributed and reproduced, not to imply hardware-independent performance.
+- Not live database certification.
+- Not a live DB adapter.
+- Not full SQL parsing.
+- Not full Elle compatibility.
+- Not full Adya anomaly coverage.
+- Not general database verification.
+- Not a production DB correctness claim.
 
 ## Limitations
 
-- No live database adapter.
-- No general SQL parser. The SQL importer is constrained trace syntax, not database SQL coverage.
-- Explicit predicate-read phantom-style edges only. IsoTrace evaluates supplied predicate objects against supplied row fields and modeled insert/update/delete row evidence; it does not infer missing rows, ranges, joins, SQL expressions, or database snapshots.
-- No claim of full Elle compatibility.
-- No certification of any database system.
+- Explicit histories only. IsoTrace analyzes supplied evidence; it does not observe real workloads.
+- Predicate phantom-style evidence only exists when predicate rows and insert/update/delete row evidence are supplied.
+- No inferred missing rows, database snapshots, SQL ranges, joins, expressions, or hidden predicate reads.
+- The SQL importer is constrained annotated trace syntax, not database SQL coverage.
+- Strict mode requires numeric `begin` and `commit` timestamps on non-initial committed transactions.
 - Equal non-initial commit timestamps are rejected because the v1 model needs unambiguous version order.
-- Strict mode requires numeric `begin` and `commit` on non-initial committed transactions.
-- Fixtures are synthetic, deterministic examples built to exercise the analyzer.
+- Fixtures are synthetic and deterministic.
+- Benchmark timings are local smoke measurements, not production performance claims.
 
-## What Makes It Technically Interesting
+## License
 
-IsoTrace is not a dashboard around fake telemetry. The core artifact is a deterministic graph checker: explicit histories go in; dependency edges, SCCs, and cycle witnesses come out. The browser surface is there to make the proof legible, while tests and CLI output make the same proof reproducible from a terminal.
-
-## Future Work
-
-- Richer editor affordances around schema errors, without broadening the input model.
-- More cycle witnesses per SCC when multiple independent causes exist.
-- More precise missing-row evidence for predicates, if the input format grows enough to support it honestly.
-- More stable benchmark methodology with warmups and repeated samples.
+MIT. See [`LICENSE`](LICENSE).
