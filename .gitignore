@@ -19,6 +19,9 @@ temp/
 raw-renders/
 raw-audio/
 raw-video/
+videos/
 screenshots/tmp/
 playwright-report/
 test-results/
+.thumbnails/
+.waveform-cache/
