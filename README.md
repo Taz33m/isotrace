@@ -3,13 +3,13 @@
 ![TypeScript strict](https://img.shields.io/badge/TypeScript-strict-blue)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green)
 
-IsoTrace is a local transaction-history analyzer for explicit key-value histories. It builds a dependency graph and explains serializability or strict-serializability failures as semantic verdicts with concrete cycle witnesses.
+IsoTrace is a local transaction-history analyzer for explicit key-value and modeled predicate-read histories. It builds a dependency graph and explains serializability or strict-serializability failures as semantic verdicts with concrete cycle witnesses.
 
 ## Technical Seam
 
 Transaction isolation failures are hard to inspect because the evidence is spread across reads, writes, version order, and realtime order. A history that looks harmless row-by-row can be impossible to serialize once read-write anti-dependencies are connected. IsoTrace focuses on that hard middle layer: turn an explicit history into graph edges that can be tested, rendered, and audited.
 
-This is inspired by dependency-graph approaches used in database consistency work such as Adya-style serialization graphs and Jepsen/Elle-style anomaly checking. IsoTrace is much smaller: it does not run a database workload and does not certify database behavior. It analyzes local JSON histories where each read already names the transaction version it observed, or imports a constrained SQL trace that carries the same explicit provenance.
+This is inspired by dependency-graph approaches used in database consistency work such as Adya-style serialization graphs and Jepsen/Elle-style anomaly checking. IsoTrace is much smaller: it does not run a database workload and does not certify database behavior. It analyzes local JSON histories where each point read already names the transaction version it observed, plus a narrow explicit predicate-read model where row membership evidence is supplied by the fixture.
 
 ## Why This Is Hard
 
@@ -18,11 +18,12 @@ The analyzer has to reconstruct several edge classes without inventing facts:
 - `ww`: per-key write version order
 - `wr`: a transaction reads a version written by another transaction
 - `rw`: a transaction read an older version before another transaction overwrote that key
+- `prw`: an explicit predicate read saw one row-membership set before another transaction changed a modeled row's membership
 - `rt`: strict-serializability realtime order
 
 A cycle in these edges is the proof of a violation. For clean evaluated graphs, IsoTrace reports a deterministic topological transaction order that satisfies the dependency edges.
 
-IsoTrace also emits a conservative semantic verdict: serializable pass/fail, strict-serializable pass/fail/not-evaluated, anomaly label, implicated transactions, proof edge sequence, and bounded limitations. Supported labels are intentionally narrow: write skew, strict stale read, generic dependency cycle, valid serial history, and aborted write ignored. This is not full Elle compatibility or complete Adya anomaly coverage.
+IsoTrace also emits a conservative semantic verdict: serializable pass/fail, strict-serializable pass/fail/not-evaluated, anomaly label, implicated transactions, proof edge sequence, and bounded limitations. Supported labels are intentionally narrow: write skew, explicit predicate phantom, strict stale read, generic dependency cycle, valid serial history, and aborted write ignored. This is not full Elle compatibility or complete Adya anomaly coverage.
 
 ## Quick Start
 
@@ -31,6 +32,7 @@ npm ci
 npm run check
 npm run demo
 npm run demo:sql
+npm run demo:phantom
 npm run smoke:ui
 ```
 
@@ -59,6 +61,14 @@ npm run demo:sql
 ```
 
 That trace parses a small subset of SQL event syntax, materializes returned `SELECT` rows into explicit read-from operations, and finds the same write-skew shape. It does not connect to a database or infer phantoms from non-returned rows.
+
+Run the explicit predicate-read phantom demo:
+
+```bash
+npm run demo:phantom
+```
+
+That fixture models two predicate reads and two relational writes whose row-membership changes create a `prw` / `prw` cycle. This is explicit predicate-read evidence, not SQL range inference.
 
 Open the workbench:
 
@@ -107,7 +117,20 @@ IsoTrace expects JSON histories like:
 }
 ```
 
-Each read must name the transaction version it observed with `from`. The referenced writer must be committed and must have written the same key and value. For v1, a transaction may write a key at most once.
+Each point read must name the transaction version it observed with `from`. The referenced writer must be committed and must have written the same key and value. For v1, a transaction may write a key at most once.
+
+Predicate reads use an explicit operation, not SQL parsing:
+
+```json
+{
+  "type": "predicate-read",
+  "table": "doctors",
+  "predicate": { "column": "on_call", "op": "=", "value": true },
+  "returnedRows": [{ "id": "alice", "on_call": true }]
+}
+```
+
+Writes may carry optional relational metadata (`table`, `rowId`, `fields`) so the analyzer can evaluate whether the write changed membership in a modeled predicate result. If one of those metadata fields is present, all three are required.
 
 Version order is explicit rather than inferred from read values. `T0` is reserved for an initial seed transaction when present; its optional `commit` is allowed but does not force the rest of the fixture into timestamped ordering. For committed transactions other than `T0`, either every transaction supplies a numeric `commit` and IsoTrace orders versions by commit time, or every transaction omits `commit` and IsoTrace uses fixture order. Mixed explicit/missing commits among non-initial committed transactions are rejected because the version order would be ambiguous.
 
@@ -122,7 +145,7 @@ T1: UPDATE doctors SET on_call = false WHERE id = 'alice'
 COMMIT T1 AT 2
 ```
 
-Supported statements are `BEGIN`, `COMMIT`, `ROLLBACK`, `INSERT INTO ... VALUES ...`, single-column `UPDATE ... SET ... WHERE id = ...`, and `SELECT cols FROM table WHERE predicate -> JSON rows`. Each returned `SELECT` row must include `_from` provenance and `id` or `_id`. IsoTrace records the predicate on generated read operations, but only returned rows become dependencies. This is predicate-read evidence for annotated traces, not general SQL parsing or phantom detection.
+Supported statements are `BEGIN`, `COMMIT`, `ROLLBACK`, `INSERT INTO ... VALUES ...`, single-column `UPDATE ... SET ... WHERE id = ...`, and `SELECT cols FROM table WHERE predicate -> JSON rows`. Each returned `SELECT` row must include `_from` provenance and `id` or `_id`. IsoTrace records predicate evidence on generated point reads and relational metadata on generated writes. This is annotated trace import, not general SQL parsing or phantom inference.
 
 ## Commands
 
@@ -134,6 +157,7 @@ npm run build
 npm run demo
 npm run demo:strict
 npm run demo:sql
+npm run demo:phantom
 npm run fixtures
 npm run bench
 npm run bench -- --json
@@ -143,6 +167,7 @@ npm run analyze -- --fixtures --json
 npm run analyze -- examples/valid_history.json --validate
 npm run analyze -- examples/write_skew_sql_trace.sql --sql-trace
 npm run analyze -- fixtures/write_skew_doctors.json --json
+npm run analyze -- fixtures/phantom_predicate_cycle.json --json
 ```
 
 `npm run check` runs typecheck, tests, production build, and the benchmark smoke. The `--json` CLI mode emits a report envelope with schema version, tool version, command, runtime, git state, input byte count, input SHA-256, and the full analysis result. That result includes the full input history, so do not use it for histories containing secrets unless printing those values is acceptable.
@@ -161,6 +186,8 @@ The test suite covers:
 - aborted transaction exclusion
 - malformed read provenance
 - repeated same-key writes in one transaction
+- explicit predicate evaluator and `prw` edge creation/exclusion
+- predicate-dependency-cycle fixture and report schema validation
 - invalid statuses, ambiguous commit order, and invalid timestamps
 - graph SCC and cycle extraction
 
@@ -172,7 +199,7 @@ The benchmark uses generated serial histories to smoke-test graph construction a
 
 - No live database adapter.
 - No general SQL parser. The SQL importer is constrained trace syntax, not database SQL coverage.
-- No phantom or non-returned range-read inference. Predicate evidence is attached only to returned rows with explicit `_from` provenance.
+- Explicit predicate-read phantom-style edges only. IsoTrace evaluates supplied predicate objects against supplied row fields; it does not infer missing rows, ranges, joins, SQL expressions, or database snapshots.
 - No claim of full Elle compatibility.
 - No certification of any database system.
 - Equal non-initial commit timestamps are rejected because the v1 model needs unambiguous version order.
@@ -187,5 +214,5 @@ IsoTrace is not a dashboard around fake telemetry. The core artifact is a determ
 
 - Richer editor affordances around schema errors, without broadening the input model.
 - More cycle witnesses per SCC when multiple independent causes exist.
-- Predicate-read and range-read modeling, if the input format grows enough to support it honestly.
+- Composite predicates and richer predicate evidence, if the input format grows enough to support it honestly.
 - More stable benchmark methodology with warmups and repeated samples.

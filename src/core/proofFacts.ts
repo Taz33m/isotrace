@@ -1,4 +1,5 @@
 import { formatJsonValue } from "./format";
+import { formatPredicate } from "./predicate";
 import type { DependencyEdge, ProofEdgeFact } from "./types";
 
 export function buildProofEdgeFact(edge: DependencyEdge): ProofEdgeFact {
@@ -30,6 +31,17 @@ export function buildProofEdgeFact(edge: DependencyEdge): ProofEdgeFact {
       ...base,
       sourceFact: `${edge.from} read ${key} before ${edge.to}'s later write`,
       targetFact: `${edge.to} wrote ${formatKeyValue(key, edge)}`,
+    });
+  }
+  if (edge.kind === "prw") {
+    const predicate = edge.predicate ? formatPredicate(edge.predicate) : "unknown predicate";
+    const row = edge.rowId !== undefined ? formatJsonValue(edge.rowId) : key;
+    const before = edge.predicateChange?.beforeMatches ? "returned" : "did not return";
+    const after = edge.predicateChange?.afterMatches ? "matched" : "did not match";
+    return withSummary({
+      ...base,
+      sourceFact: `${edge.from} predicate-read ${edge.table ?? "table"} where ${predicate} ${before} row ${row}`,
+      targetFact: `${edge.to} changed row ${row} so it ${after} the predicate, creating a predicate-read/write anti-dependency`,
     });
   }
   return withSummary({

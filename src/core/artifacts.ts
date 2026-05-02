@@ -117,8 +117,15 @@ function formatSchemaError(error: ErrorObject): string {
   if (error.keyword === "additionalProperties" && isRecord(error.params) && typeof error.params.additionalProperty === "string") {
     return `${path} does not allow property ${error.params.additionalProperty}`;
   }
-  if (error.keyword === "enum" && Array.isArray(error.schema)) {
-    return `${path} must be one of ${error.schema.join(", ")}`;
+  if (error.keyword === "enum") {
+    const allowedValues = Array.isArray(error.schema)
+      ? error.schema
+      : isRecord(error.params) && Array.isArray(error.params.allowedValues)
+        ? error.params.allowedValues
+        : null;
+    if (allowedValues) {
+      return `${path} must be one of ${allowedValues.join(", ")}`;
+    }
   }
   if (error.keyword === "const") {
     return `${path} must equal ${String(error.schema)}`;

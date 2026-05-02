@@ -1,0 +1,72 @@
+{
+  "name": "phantom_predicate_cycle",
+  "description": "Two transactions predicate-read opposite doctor on-call sets, then update rows so each transaction changes membership in the other's predicate result.",
+  "transactions": [
+    {
+      "id": "T0",
+      "commit": 0,
+      "ops": [
+        {
+          "type": "write",
+          "key": "doctors/alice/on_call",
+          "value": true,
+          "table": "doctors",
+          "rowId": "alice",
+          "fields": { "on_call": true }
+        },
+        {
+          "type": "write",
+          "key": "doctors/bob/on_call",
+          "value": false,
+          "table": "doctors",
+          "rowId": "bob",
+          "fields": { "on_call": false }
+        }
+      ]
+    },
+    {
+      "id": "T1",
+      "begin": 1,
+      "commit": 2,
+      "ops": [
+        {
+          "type": "predicate-read",
+          "table": "doctors",
+          "predicate": { "column": "on_call", "op": "=", "value": true },
+          "returnedRows": [{ "id": "alice", "on_call": true }],
+          "sourceSql": "SELECT * FROM doctors WHERE on_call = true"
+        },
+        {
+          "type": "write",
+          "key": "doctors/bob/on_call",
+          "value": true,
+          "table": "doctors",
+          "rowId": "bob",
+          "fields": { "on_call": true }
+        }
+      ]
+    },
+    {
+      "id": "T2",
+      "begin": 1.5,
+      "commit": 3,
+      "ops": [
+        {
+          "type": "predicate-read",
+          "table": "doctors",
+          "predicate": { "column": "on_call", "op": "=", "value": false },
+          "returnedRows": [{ "id": "bob", "on_call": false }],
+          "sourceSql": "SELECT * FROM doctors WHERE on_call = false"
+        },
+        {
+          "type": "write",
+          "key": "doctors/alice/on_call",
+          "value": false,
+          "table": "doctors",
+          "rowId": "alice",
+          "fields": { "on_call": false }
+        }
+      ]
+    }
+  ]
+}

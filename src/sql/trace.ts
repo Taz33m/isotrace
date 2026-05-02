@@ -129,6 +129,9 @@ function parseUpdate(sql: string, lineNumber: number): TxOp {
     type: "write",
     key: rowKey(table, rowId, column),
     value,
+    table,
+    rowId,
+    fields: { [column]: value },
   };
 }
 
@@ -150,7 +153,8 @@ function parseInsert(sql: string, lineNumber: number): TxOp[] {
   const rowId = values[idIndex];
   return columns.flatMap((column, index): TxOp[] => {
     if (column.toLowerCase() === "id") return [];
-    return [{ type: "write", key: rowKey(table, rowId, column), value: values[index] as JsonValue }];
+    const value = values[index] as JsonValue;
+    return [{ type: "write", key: rowKey(table, rowId, column), value, table, rowId, fields: { [column]: value } }];
   });
 }
 

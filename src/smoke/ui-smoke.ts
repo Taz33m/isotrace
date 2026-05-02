@@ -40,6 +40,11 @@ function runCliProofSmoke(): void {
   assertIncludes(strict, "[rt/realtime]", "strict demo includes realtime edge proof");
   assertIncludes(strict, "facts: source fact: T1 committed before T2 began", "strict demo prints realtime proof facts");
 
+  const phantom = runIsoTraceCli(["fixtures/phantom_predicate_cycle.json"]);
+  assertIncludes(phantom, "Anomaly: Explicit predicate phantom [predicate-dependency-cycle]", "phantom demo reports predicate anomaly label");
+  assertIncludes(phantom, "Proof edges: e3 -> e4 (prw -> prw)", "phantom demo reports prw proof edge sequence");
+  assertIncludes(phantom, "predicate-read/write anti-dependency", "phantom demo reports predicate proof facts");
+
   const violationGate = runIsoTraceCliForStatus(["fixtures/write_skew_doctors.json", "--fail-on-violation"], 2);
   assertIncludes(violationGate.stdout, "Result: VIOLATION", "fail-on-violation prints proof output before exiting 2");
   assertIncludes(violationGate.stdout, "Anomaly: Write skew [write-skew]", "fail-on-violation keeps semantic verdict text");
@@ -284,6 +289,21 @@ async function verifyWorkbench(page: Page, url: string): Promise<void> {
   if (!selectedGraphEdgeClass?.includes("selected")) {
     throw new Error(`UI smoke expected graph edge ${selectedEdgeId} to be selected`);
   }
+
+  await page.getByTestId("scenario-phantom_predicate_cycle").click();
+  await page.getByRole("heading", { name: "phantom_predicate_cycle" }).waitFor({ state: "visible" });
+  await page.getByTestId("verdict-panel").filter({ hasText: "Explicit predicate phantom" }).waitFor({ state: "visible" });
+  await page.getByTestId("verdict-panel").filter({ hasText: "predicate-dependency-cycle" }).waitFor({ state: "visible" });
+  await page.getByTestId("verdict-panel").filter({ hasText: "T1, T2" }).waitFor({ state: "visible" });
+  await page.getByTestId("verdict-panel").filter({ hasText: "predicate-read/write anti-dependency" }).waitFor({ state: "visible" });
+  const firstPredicateEdge = page.locator("[data-testid^='verdict-edge-']").first();
+  await firstPredicateEdge.waitFor({ state: "visible" });
+  await firstPredicateEdge.click();
+  const selectedPredicateEdgeId = (await firstPredicateEdge.getAttribute("data-testid"))?.replace("verdict-edge-", "");
+  if (!selectedPredicateEdgeId) {
+    throw new Error("UI smoke expected a selectable predicate verdict proof edge");
+  }
+  await page.getByTestId("selected-edge").filter({ hasText: selectedPredicateEdgeId }).filter({ hasText: "prw" }).waitFor({ state: "visible" });
 
   const validHistory = {
     name: "ui_smoke_custom",

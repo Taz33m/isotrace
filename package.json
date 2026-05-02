@@ -13,6 +13,7 @@
     "demo": "node --import tsx src/cli.ts fixtures/write_skew_doctors.json",
     "demo:strict": "node --import tsx src/cli.ts fixtures/stale_read_strict.json --strict",
     "demo:sql": "node --import tsx src/cli.ts examples/write_skew_sql_trace.sql --sql-trace",
+    "demo:phantom": "node --import tsx src/cli.ts fixtures/phantom_predicate_cycle.json",
     "analyze": "node --import tsx src/cli.ts",
     "fixtures": "node --import tsx src/cli.ts --fixtures",
     "artifacts:check": "node --import tsx src/artifacts/check.ts",

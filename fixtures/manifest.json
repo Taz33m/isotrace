@@ -21,6 +21,7 @@
           "ww": 0,
           "wr": 1,
           "rw": 0,
+          "prw": 0,
           "rt": 0
         }
       }
@@ -45,6 +46,7 @@
           "ww": 2,
           "wr": 2,
           "rw": 1,
+          "prw": 0,
           "rt": 0
         }
       }
@@ -69,6 +71,7 @@
           "ww": 1,
           "wr": 1,
           "rw": 1,
+          "prw": 0,
           "rt": 1
         }
       }
@@ -93,7 +96,33 @@
           "ww": 2,
           "wr": 2,
           "rw": 1,
+          "prw": 0,
           "rt": 1
+        }
+      }
+    },
+    {
+      "path": "fixtures/phantom_predicate_cycle.json",
+      "reproduce": "npm run --silent analyze -- fixtures/phantom_predicate_cycle.json --json",
+      "argv": ["fixtures/phantom_predicate_cycle.json", "--json"],
+      "expected": {
+        "historyName": "phantom_predicate_cycle",
+        "mode": "serializable",
+        "ok": false,
+        "anomaly": "predicate-dependency-cycle",
+        "serializable": "fail",
+        "strictSerializable": "fail",
+        "implicatedTransactions": ["T1", "T2"],
+        "evidenceKind": "cycle",
+        "edgeKinds": ["prw", "prw"],
+        "cycleCount": 1,
+        "orderWitness": null,
+        "kindCounts": {
+          "ww": 2,
+          "wr": 0,
+          "rw": 0,
+          "prw": 2,
+          "rt": 0
         }
       }
     },
@@ -117,6 +146,7 @@
           "ww": 2,
           "wr": 4,
           "rw": 2,
+          "prw": 0,
           "rt": 0
         }
       }

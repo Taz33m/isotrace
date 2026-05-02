@@ -60,10 +60,10 @@
     "op": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "key", "value"],
+      "required": ["type"],
       "properties": {
         "type": {
-          "enum": ["read", "write"]
+          "enum": ["read", "write", "predicate-read"]
         },
         "key": {
           "type": "string",
@@ -76,8 +76,33 @@
           "type": "string",
           "minLength": 1
         },
+        "table": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rowId": {
+          "$ref": "#/$defs/jsonValue"
+        },
+        "fields": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/jsonValue"
+          }
+        },
         "predicate": {
-          "$ref": "#/$defs/predicateRead"
+          "type": "object"
+        },
+        "returnedRows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/predicateReadRow"
+          }
+        },
+        "sourceSql": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
         }
       },
       "allOf": [
@@ -91,7 +116,34 @@
             "required": ["type"]
           },
           "then": {
-            "required": ["from"]
+            "required": ["key", "value", "from"],
+            "properties": {
+              "predicate": {
+                "$ref": "#/$defs/readPredicateEvidence"
+              }
+            },
+            "not": {
+              "anyOf": [
+                {
+                  "required": ["table"]
+                },
+                {
+                  "required": ["rowId"]
+                },
+                {
+                  "required": ["fields"]
+                },
+                {
+                  "required": ["returnedRows"]
+                },
+                {
+                  "required": ["sourceSql"]
+                },
+                {
+                  "required": ["note"]
+                }
+              ]
+            }
           }
         },
         {
@@ -104,6 +156,12 @@
             "required": ["type"]
           },
           "then": {
+            "required": ["key", "value"],
+            "dependentRequired": {
+              "table": ["rowId", "fields"],
+              "rowId": ["table", "fields"],
+              "fields": ["table", "rowId"]
+            },
             "not": {
               "anyOf": [
                 {
@@ -111,6 +169,52 @@
                 },
                 {
                   "required": ["predicate"]
+                },
+                {
+                  "required": ["returnedRows"]
+                },
+                {
+                  "required": ["sourceSql"]
+                },
+                {
+                  "required": ["note"]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "predicate-read"
+              }
+            },
+            "required": ["type"]
+          },
+          "then": {
+            "required": ["table", "predicate", "returnedRows"],
+            "properties": {
+              "predicate": {
+                "$ref": "#/$defs/predicateExpression"
+              }
+            },
+            "not": {
+              "anyOf": [
+                {
+                  "required": ["from"]
+                },
+                {
+                  "required": ["key"]
+                },
+                {
+                  "required": ["value"]
+                },
+                {
+                  "required": ["rowId"]
+                },
+                {
+                  "required": ["fields"]
                 }
               ]
             }
@@ -118,7 +222,36 @@
         }
       ]
     },
-    "predicateRead": {
+    "predicateExpression": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["column", "op", "value"],
+      "properties": {
+        "column": {
+          "type": "string",
+          "minLength": 1
+        },
+        "op": {
+          "enum": ["=", "!=", "<", "<=", ">", ">="]
+        },
+        "value": {
+          "$ref": "#/$defs/jsonValue"
+        }
+      }
+    },
+    "predicateReadRow": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": {
+        "$ref": "#/$defs/jsonValue"
+      },
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/jsonValue"
+        }
+      }
+    },
+    "readPredicateEvidence": {
       "type": "object",
       "additionalProperties": false,
       "required": ["table", "where", "rowId", "sourceSql"],

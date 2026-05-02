@@ -4,6 +4,16 @@ export type IsolationMode = "serializable" | "strict-serializable";
 
 export type TransactionStatus = "committed" | "aborted";
 
+export type PredicateOperator = "=" | "!=" | "<" | "<=" | ">" | ">=";
+
+export interface PredicateExpression {
+  column: string;
+  op: PredicateOperator;
+  value: JsonValue;
+}
+
+export type PredicateReadRow = { id: JsonValue } & Record<string, JsonValue>;
+
 export interface ReadOp {
   type: "read";
   key: string;
@@ -16,6 +26,9 @@ export interface WriteOp {
   type: "write";
   key: string;
   value: JsonValue;
+  table?: string;
+  rowId?: JsonValue;
+  fields?: Record<string, JsonValue>;
 }
 
 export interface PredicateReadEvidence {
@@ -25,7 +38,16 @@ export interface PredicateReadEvidence {
   sourceSql: string;
 }
 
-export type TxOp = ReadOp | WriteOp;
+export interface PredicateReadOp {
+  type: "predicate-read";
+  table: string;
+  predicate: PredicateExpression;
+  returnedRows: PredicateReadRow[];
+  sourceSql?: string;
+  note?: string;
+}
+
+export type TxOp = ReadOp | WriteOp | PredicateReadOp;
 
 export interface Transaction {
   id: string;
@@ -44,7 +66,12 @@ export interface History {
   transactions: Transaction[];
 }
 
-export type EdgeKind = "ww" | "wr" | "rw" | "rt";
+export type EdgeKind = "ww" | "wr" | "rw" | "prw" | "rt";
+
+export interface PredicateMembershipChange {
+  beforeMatches: boolean;
+  afterMatches: boolean;
+}
 
 export interface DependencyEdge {
   id: string;
@@ -53,6 +80,10 @@ export interface DependencyEdge {
   kind: EdgeKind;
   key?: string;
   value?: JsonValue;
+  table?: string;
+  rowId?: JsonValue;
+  predicate?: PredicateExpression;
+  predicateChange?: PredicateMembershipChange;
   reason: string;
 }
 
@@ -85,6 +116,7 @@ export type IsolationCheckStatus = "pass" | "fail" | "not-evaluated";
 
 export type AnomalyClass =
   | "write-skew"
+  | "predicate-dependency-cycle"
   | "strict-stale-read"
   | "dependency-cycle"
   | "valid-serial-history"

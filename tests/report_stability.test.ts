@@ -24,7 +24,7 @@ describe("CLI report stability", () => {
         historyName: "write_skew_doctors",
         mode: "serializable",
         ok: false,
-        kindCounts: { ww: 2, wr: 4, rw: 2, rt: 0 },
+        kindCounts: { ww: 2, wr: 4, rw: 2, prw: 0, rt: 0 },
         cycleCount: 1,
         ignoredTransactions: [],
         validationNotes: [
@@ -91,7 +91,7 @@ describe("CLI report stability", () => {
         historyName: "stale_read_strict",
         mode: "strict-serializable",
         ok: false,
-        kindCounts: { ww: 1, wr: 1, rw: 1, rt: 1 },
+        kindCounts: { ww: 1, wr: 1, rw: 1, prw: 0, rt: 1 },
         cycleCount: 1,
         ignoredTransactions: [],
         validationNotes: [

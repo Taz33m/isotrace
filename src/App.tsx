@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { analyzeHistory, edgeKindLabel } from "./core/analyzer";
 import { parseHistoryJson } from "./core/artifacts";
 import { formatJsonValue } from "./core/format";
+import { formatPredicate } from "./core/predicate";
 import type { AnalysisResult, DependencyEdge, EdgeKind, GraphNode, History, IsolationVerdict, TxOp } from "./core/types";
 import { fixtureCatalog } from "./fixtures";
 
@@ -10,6 +11,7 @@ const edgeColors: Record<EdgeKind, string> = {
   ww: "#2563eb",
   wr: "#0f766e",
   rw: "#b45309",
+  prw: "#be123c",
   rt: "#7c3aed",
 };
 
@@ -375,6 +377,11 @@ function HistoryTable({
 
 function formatOp(op: TxOp): string {
   if (op.type === "read") return `read ${op.key}=${formatJsonValue(op.value)} from ${op.from}`;
+  if (op.type === "predicate-read") {
+    const sql = op.sourceSql ? ` sql=${op.sourceSql}` : "";
+    const note = op.note ? ` note=${op.note}` : "";
+    return `predicate-read ${op.table} where ${formatPredicate(op.predicate)} rows=${op.returnedRows.length}${sql}${note}`;
+  }
   return `write ${op.key}=${formatJsonValue(op.value)}`;
 }
 
@@ -396,7 +403,15 @@ function operationEdgeRole(txId: string, op: TxOp, edge: DependencyEdge | null):
     if (txId === edge.from && op.type === "read" && op.key === edge.key) return "edgeSourceOp";
     if (txId === edge.to && op.type === "write" && op.key === edge.key) return "edgeTargetOp";
   }
+  if (edge.kind === "prw") {
+    if (txId === edge.from && op.type === "predicate-read" && op.table === edge.table) return "edgeSourceOp";
+    if (txId === edge.to && op.type === "write" && op.table === edge.table && rowIdsEqual(op.rowId, edge.rowId)) return "edgeTargetOp";
+  }
   return null;
+}
+
+function rowIdsEqual(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 function DependencyGraph({
@@ -418,7 +433,7 @@ function DependencyGraph({
   return (
     <svg className="graphSvg" viewBox="0 0 780 390" role="img" aria-label="Dependency graph">
       <defs>
-        {(["ww", "wr", "rw", "rt"] as EdgeKind[]).map((kind) => (
+        {(["ww", "wr", "rw", "prw", "rt"] as EdgeKind[]).map((kind) => (
           <marker id={`arrow-${kind}`} key={kind} markerHeight="8" markerWidth="8" orient="auto" refX="7" refY="4">
             <path d="M 0 0 L 8 4 L 0 8 z" fill={edgeColors[kind]} />
           </marker>
@@ -504,7 +519,7 @@ function SelectedEdge({ edge }: { edge: DependencyEdge | null }) {
 }
 
 function GraphLegend() {
-  const kinds: EdgeKind[] = ["ww", "wr", "rw", "rt"];
+  const kinds: EdgeKind[] = ["ww", "wr", "rw", "prw", "rt"];
   return (
     <div className="graphLegend" aria-label="Graph edge legend">
       {kinds.map((kind) => (

@@ -11,9 +11,13 @@ export function buildIsolationVerdict(options: {
   const serialCycles = stableCycles(options.serialCycles);
   const ignoredTransactions = stableTransactionIds(options.ignoredTransactions);
   const serialCycle = serialCycles[0] ?? null;
+  const predicateCycle = serialCycles.find(isPredicateDependencyCycle) ?? null;
   const writeSkewCycle = serialCycles.find(isWriteSkewCycle) ?? null;
   const strictCycle = allCycles.find((cycle) => cycle.edges.some((edge) => edge.kind === "rt")) ?? null;
 
+  if (predicateCycle) {
+    return predicateDependencyVerdict(predicateCycle, options.mode);
+  }
   if (writeSkewCycle) {
     return writeSkewVerdict(writeSkewCycle, options.mode);
   }
@@ -27,6 +31,31 @@ export function buildIsolationVerdict(options: {
     return abortedIgnoredVerdict(options.mode, ignoredTransactions);
   }
   return validVerdict(options.mode);
+}
+
+function predicateDependencyVerdict(cycle: CycleWitness, mode: IsolationMode): IsolationVerdict {
+  const txs = uniqueCycleTransactions(cycle);
+  const evidence = evidenceFromCycle(cycle, "predicate-read/write anti-dependency cycle");
+  return {
+    serializable: {
+      status: "fail",
+      reason: "A dependency cycle exists using an explicit predicate-read/write anti-dependency.",
+    },
+    strictSerializable: {
+      status: "fail",
+      reason: "Strict serializability implies serializability, so a serializability failure also fails strict serializability.",
+    },
+    anomaly: {
+      label: "predicate-dependency-cycle",
+      title: "Explicit predicate phantom",
+    },
+    implicatedTransactions: txs,
+    evidence,
+    summary: "Not serializable: explicit predicate-read phantom-style dependency cycle.",
+    explanation: `${txs.join(" and ")} form a cycle where modeled predicate reads conflict with writes that changed row membership.`,
+    inspectFirst: `Inspect ${cycle.id}, especially predicate proof edges ${evidence.edgeIds.join(", ")}.`,
+    limitations: baseLimitations(mode),
+  };
 }
 
 function writeSkewVerdict(cycle: CycleWitness, mode: IsolationMode): IsolationVerdict {
@@ -178,6 +207,10 @@ function isWriteSkewCycle(cycle: CycleWitness): boolean {
   return cycle.edges.length === 2 && txs.length === 2 && cycle.edges.every((edge) => edge.kind === "rw");
 }
 
+function isPredicateDependencyCycle(cycle: CycleWitness): boolean {
+  return cycle.edges.some((edge) => edge.kind === "prw");
+}
+
 function evidenceFromCycle(cycle: CycleWitness, pattern: string): IsolationVerdict["evidence"] {
   const proofEdges = stableCycleEdgeSequence(cycle);
   return {
@@ -240,7 +273,7 @@ function stableTransactionIds(ids: string[]): string[] {
 
 function baseLimitations(mode: IsolationMode): string[] {
   const limitations = [
-    "Explicit read-from histories only. Constrained SQL trace import can materialize returned rows, but there is no live database adapter, general SQL parser, or phantom/range inference.",
+    "Explicit read-from histories only. Predicate-read phantom-style dependencies are inferred only from modeled returned rows and relational write metadata; there is no live database adapter, general SQL parser, or range inference.",
   ];
   if (mode !== "strict-serializable") {
     limitations.push("Strict realtime order was not evaluated in this run.");

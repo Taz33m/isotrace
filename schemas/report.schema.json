@@ -184,7 +184,7 @@
         "kindCounts": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["ww", "wr", "rw", "rt"],
+          "required": ["ww", "wr", "rw", "prw", "rt"],
           "properties": {
             "ww": {
               "type": "integer",
@@ -195,6 +195,10 @@
               "minimum": 0
             },
             "rw": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "prw": {
               "type": "integer",
               "minimum": 0
             },
@@ -239,7 +243,7 @@
           "required": ["label", "title"],
           "properties": {
             "label": {
-              "enum": ["write-skew", "strict-stale-read", "dependency-cycle", "valid-serial-history", "aborted-write-ignored"]
+              "enum": ["write-skew", "predicate-dependency-cycle", "strict-stale-read", "dependency-cycle", "valid-serial-history", "aborted-write-ignored"]
             },
             "title": {
               "type": "string",
@@ -310,7 +314,7 @@
         "edgeKinds": {
           "type": "array",
           "items": {
-            "enum": ["ww", "wr", "rw", "rt"]
+            "enum": ["ww", "wr", "rw", "prw", "rt"]
           }
         },
         "proofEdges": {
@@ -335,7 +339,7 @@
           "minLength": 1
         },
         "edgeKind": {
-          "enum": ["ww", "wr", "rw", "rt"]
+          "enum": ["ww", "wr", "rw", "prw", "rt"]
         },
         "sourceTransaction": {
           "type": "string",
@@ -404,13 +408,25 @@
           "minLength": 1
         },
         "kind": {
-          "enum": ["ww", "wr", "rw", "rt"]
+          "enum": ["ww", "wr", "rw", "prw", "rt"]
         },
         "key": {
           "type": "string"
         },
         "value": {
           "$ref": "#/$defs/jsonValue"
+        },
+        "table": {
+          "type": "string"
+        },
+        "rowId": {
+          "$ref": "#/$defs/jsonValue"
+        },
+        "predicate": {
+          "$ref": "#/$defs/predicateExpression"
+        },
+        "predicateChange": {
+          "$ref": "#/$defs/predicateMembershipChange"
         },
         "reason": {
           "type": "string",
@@ -474,6 +490,36 @@
         "summary": {
           "type": "string",
           "minLength": 1
+        }
+      }
+    },
+    "predicateExpression": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["column", "op", "value"],
+      "properties": {
+        "column": {
+          "type": "string",
+          "minLength": 1
+        },
+        "op": {
+          "enum": ["=", "!=", "<", "<=", ">", ">="]
+        },
+        "value": {
+          "$ref": "#/$defs/jsonValue"
+        }
+      }
+    },
+    "predicateMembershipChange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["beforeMatches", "afterMatches"],
+      "properties": {
+        "beforeMatches": {
+          "type": "boolean"
+        },
+        "afterMatches": {
+          "type": "boolean"
         }
       }
     },

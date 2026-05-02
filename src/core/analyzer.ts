@@ -6,12 +6,15 @@ import type {
   GraphNode,
   History,
   IsolationMode,
+  JsonValue,
   OrderWitness,
+  PredicateReadOp,
   ReadOp,
   Transaction,
   WriteOp,
 } from "./types";
 import { formatJsonValue } from "./format";
+import { evaluatePredicate, formatPredicate, predicateRowIdentity } from "./predicate";
 import { edgeSignature, findCycleInComponent, tarjanScc, topologicalOrder } from "./graph";
 import { HistoryValidationError, normalizeHistory } from "./validate";
 import { buildIsolationVerdict } from "./verdict";
@@ -30,6 +33,7 @@ const EDGE_KIND_LABEL: Record<EdgeKind, string> = {
   ww: "write-write",
   wr: "write-read",
   rw: "read-write anti-dependency",
+  prw: "predicate-read/write anti-dependency",
   rt: "realtime",
 };
 
@@ -153,6 +157,7 @@ function buildEdges(transactions: Transaction[], versions: Map<string, VersionWr
       addReadDependencies(tx, op, versions, add);
     }
   }
+  addPredicateReadDependencies(transactions, edges, add);
 
   if (mode === "strict-serializable") {
     for (const before of transactions) {
@@ -221,6 +226,63 @@ function addReadDependencies(
   }
 }
 
+function addPredicateReadDependencies(
+  transactions: Transaction[],
+  currentEdges: DependencyEdge[],
+  add: (edge: Omit<DependencyEdge, "id">) => void,
+): void {
+  for (const reader of transactions) {
+    for (const op of reader.ops) {
+      if (op.type !== "predicate-read") continue;
+      for (const writer of transactions) {
+        if (writer.id === reader.id) continue;
+        if (!couldAffectPredicateRead(reader, writer)) continue;
+        for (const write of writer.ops) {
+          if (write.type !== "write" || !isRelationalWrite(write) || write.table !== op.table) continue;
+          const beforeMatches = returnedRowsContain(op, write.rowId);
+          const afterMatches = evaluatePredicate({ ...write.fields, id: write.rowId }, op.predicate);
+          if (beforeMatches === afterMatches) continue;
+          if (hasEquivalentPointRw(currentEdges, reader.id, writer.id, write)) continue;
+          const rowKey = relationalRowKey(write.table, write.rowId);
+          add({
+            from: reader.id,
+            to: writer.id,
+            kind: "prw",
+            key: rowKey,
+            table: write.table,
+            rowId: write.rowId,
+            predicate: op.predicate,
+            predicateChange: { beforeMatches, afterMatches },
+            reason: `${reader.id} predicate-read ${write.table} where ${formatPredicate(op.predicate)} ${beforeMatches ? "returned" : "did not return"} row ${formatJsonValue(write.rowId)}, before ${writer.id}'s write changed membership to ${afterMatches ? "matching" : "not matching"}.`,
+          });
+        }
+      }
+    }
+  }
+}
+
+function couldAffectPredicateRead(reader: Transaction, writer: Transaction): boolean {
+  if (typeof reader.begin !== "number" || typeof writer.commit !== "number") return true;
+  return writer.commit > reader.begin;
+}
+
+function returnedRowsContain(op: PredicateReadOp, rowId: WriteOp["rowId"]): boolean {
+  return op.returnedRows.some((row) => predicateRowIdentity(row.id) === predicateRowIdentity(rowId ?? null));
+}
+
+function hasEquivalentPointRw(edges: DependencyEdge[], readerId: string, writerId: string, write: WriteOp): boolean {
+  const rowKey = relationalRowKey(write.table ?? "", write.rowId ?? null);
+  return edges.some((edge) => edge.kind === "rw" && edge.from === readerId && edge.to === writerId && edge.key?.startsWith(`${rowKey}/`));
+}
+
+function isRelationalWrite(op: WriteOp): op is WriteOp & { table: string; rowId: JsonValue; fields: Record<string, JsonValue> } {
+  return typeof op.table === "string" && "rowId" in op && op.rowId !== undefined && op.fields !== undefined;
+}
+
+function relationalRowKey(table: string, rowId: WriteOp["rowId"]): string {
+  return `${table}/${String(rowId ?? "null")}`;
+}
+
 function findCycles(nodeIds: string[], edges: DependencyEdge[]): CycleWitness[] {
   const components = tarjanScc({ nodes: nodeIds, edges });
   const cycles: CycleWitness[] = [];
@@ -247,7 +309,7 @@ function findCycles(nodeIds: string[], edges: DependencyEdge[]): CycleWitness[] 
 
 function classifyCycle(edges: DependencyEdge[]): CycleWitness["classification"] {
   if (edges.some((edge) => edge.kind === "rt")) return "strict-serializability";
-  if (edges.some((edge) => edge.kind === "rw")) return "serializability";
+  if (edges.some((edge) => edge.kind === "rw" || edge.kind === "prw")) return "serializability";
   return "dependency-cycle";
 }
 
@@ -275,7 +337,7 @@ function countKinds(edges: DependencyEdge[]): Record<EdgeKind, number> {
       counts[edge.kind] += 1;
       return counts;
     },
-    { ww: 0, wr: 0, rw: 0, rt: 0 },
+    { ww: 0, wr: 0, rw: 0, prw: 0, rt: 0 },
   );
 }
 

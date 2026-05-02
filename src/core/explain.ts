@@ -29,7 +29,7 @@ export function explainResult(result: AnalysisResult): string {
   lines.push(
     `Graph: ${plural(result.nodes.length, "transaction")}, ${plural(result.edges.length, "edge")}, ${plural(result.cycles.length, "cycle")}.`,
   );
-  lines.push(`Edges: ww=${result.kindCounts.ww}, wr=${result.kindCounts.wr}, rw=${result.kindCounts.rw}, rt=${result.kindCounts.rt}.`);
+  lines.push(`Edges: ww=${result.kindCounts.ww}, wr=${result.kindCounts.wr}, rw=${result.kindCounts.rw}, prw=${result.kindCounts.prw}, rt=${result.kindCounts.rt}.`);
 
   if (result.validationNotes.length > 0) {
     lines.push("");
