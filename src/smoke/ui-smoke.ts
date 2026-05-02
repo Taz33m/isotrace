@@ -238,6 +238,13 @@ async function verifyWorkbench(page: Page, url: string): Promise<void> {
   await page.getByTestId("history-order-rank-T2").filter({ hasText: "#3 witness" }).waitFor({ state: "visible" });
   await page.getByTestId("graph-order-rank-T0").filter({ hasText: "#1" }).waitFor({ state: "visible" });
 
+  await page.getByTestId("scenario-strict_serial_handoff").click();
+  await page.getByRole("heading", { name: "strict_serial_handoff" }).waitFor({ state: "visible" });
+  await page.getByTestId("verdict-panel").filter({ hasText: "Valid serial history" }).waitFor({ state: "visible" });
+  await page.getByTestId("verdict-panel").filter({ hasText: "Pass" }).waitFor({ state: "visible" });
+  await page.getByTestId("order-witness").filter({ hasText: "strict-serializable" }).waitFor({ state: "visible" });
+  await page.getByTestId("order-witness-step-T2").filter({ hasText: "#3 T2" }).waitFor({ state: "visible" });
+
   await page.getByTestId("scenario-write_skew_doctors").click();
   await page.getByRole("heading", { name: "write_skew_doctors" }).waitFor({ state: "visible" });
   await page.getByTestId("verdict-panel").filter({ hasText: "Write skew" }).waitFor({ state: "visible" });

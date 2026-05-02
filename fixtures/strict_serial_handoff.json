@@ -1,0 +1,37 @@
+{
+  "name": "strict_serial_handoff",
+  "description": "Two sequential transactions hand off the latest committed value under realtime order, so strict serializability passes with a concrete order witness.",
+  "mode": "strict-serializable",
+  "transactions": [
+    {
+      "id": "T0",
+      "label": "initial counter",
+      "commit": 0,
+      "ops": [
+        { "type": "write", "key": "counter/value", "value": 0 }
+      ]
+    },
+    {
+      "id": "T1",
+      "label": "first increment",
+      "process": "worker-1",
+      "begin": 1,
+      "commit": 2,
+      "ops": [
+        { "type": "read", "key": "counter/value", "value": 0, "from": "T0" },
+        { "type": "write", "key": "counter/value", "value": 1 }
+      ]
+    },
+    {
+      "id": "T2",
+      "label": "second increment",
+      "process": "worker-2",
+      "begin": 3,
+      "commit": 4,
+      "ops": [
+        { "type": "read", "key": "counter/value", "value": 1, "from": "T1" },
+        { "type": "write", "key": "counter/value", "value": 2 }
+      ]
+    }
+  ]
+}

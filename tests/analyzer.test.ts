@@ -5,6 +5,7 @@ import { HistoryValidationError } from "../src/core/validate";
 import writeSkewDoctors from "../fixtures/write_skew_doctors.json";
 import serialStockDecrement from "../fixtures/serial_stock_decrement.json";
 import staleReadStrict from "../fixtures/stale_read_strict.json";
+import strictSerialHandoff from "../fixtures/strict_serial_handoff.json";
 import abortedWriteIgnored from "../fixtures/aborted_write_ignored.json";
 
 describe("IsoTrace analyzer", () => {
@@ -35,6 +36,17 @@ describe("IsoTrace analyzer", () => {
     expect(strict.ok).toBe(false);
     expect(strict.cycles[0].classification).toBe("strict-serializability");
     expect(strict.cycles[0].edges.some((edge) => edge.kind === "rt")).toBe(true);
+  });
+
+  it("accepts a clean strict-serializable handoff with realtime edges", () => {
+    const result = analyzeHistory(strictSerialHandoff as History, { strict: true });
+    expect(result.ok).toBe(true);
+    expect(result.kindCounts.rt).toBe(1);
+    expect(result.verdict.strictSerializable.status).toBe("pass");
+    expect(result.verdict.anomaly.label).toBe("valid-serial-history");
+    expect(result.orderWitness?.mode).toBe("strict-serializable");
+    expect(result.orderWitness?.transactions).toEqual(["T0", "T1", "T2"]);
+    expectOrderSatisfiesEdges(result.orderWitness?.transactions ?? [], result.edges.map((edge) => [edge.from, edge.to]));
   });
 
   it("ignores aborted transactions when constructing committed-version order", () => {

@@ -1,6 +1,7 @@
 import writeSkewDoctors from "../../fixtures/write_skew_doctors.json";
 import serialStockDecrement from "../../fixtures/serial_stock_decrement.json";
 import staleReadStrict from "../../fixtures/stale_read_strict.json";
+import strictSerialHandoff from "../../fixtures/strict_serial_handoff.json";
 import abortedWriteIgnored from "../../fixtures/aborted_write_ignored.json";
 import type { History } from "../core/types";
 
@@ -20,6 +21,11 @@ export const fixtureCatalog: FixtureEntry[] = [
     slug: "stale_read_strict",
     title: "Strict stale read",
     history: staleReadStrict as History,
+  },
+  {
+    slug: "strict_serial_handoff",
+    title: "Strict serial handoff",
+    history: strictSerialHandoff as History,
   },
   {
     slug: "serial_stock_decrement",
