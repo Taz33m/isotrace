@@ -1,5 +1,8 @@
 # IsoTrace
 
+![TypeScript strict](https://img.shields.io/badge/TypeScript-strict-blue)
+![License: MIT](https://img.shields.io/badge/License-MIT-green)
+
 IsoTrace is a local transaction-history analyzer for explicit key-value histories. It builds a dependency graph and explains serializability or strict-serializability failures as semantic verdicts with concrete cycle witnesses.
 
 ## Technical Seam
@@ -21,12 +24,20 @@ A cycle in these edges is the proof of a violation. For clean evaluated graphs, 
 
 IsoTrace also emits a conservative semantic verdict: serializable pass/fail, strict-serializable pass/fail/not-evaluated, anomaly label, implicated transactions, proof edge sequence, and bounded limitations. Supported labels are intentionally narrow: write skew, strict stale read, generic dependency cycle, valid serial history, and aborted write ignored. This is not full Elle compatibility or complete Adya anomaly coverage.
 
+## Quick Start
+
+```bash
+npm ci
+npm run check
+npm run demo
+npm run smoke:ui
+```
+
 ## Demo
 
 Run the write-skew demo:
 
 ```bash
-npm install
 npm run demo
 ```
 
@@ -149,7 +160,7 @@ IsoTrace is not a dashboard around fake telemetry. The core artifact is a determ
 
 ## Future Work
 
-- JSON Schema for fixture validation and editor support.
+- Richer editor affordances around schema errors, without broadening the input model.
 - More cycle witnesses per SCC when multiple independent causes exist.
 - Predicate-read and range-read modeling, if the input format grows enough to support it honestly.
 - More stable benchmark methodology with warmups and repeated samples.
