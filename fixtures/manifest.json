@@ -1,0 +1,97 @@
+{
+  "schema": "isotrace.fixture-manifest.v1",
+  "fixtures": [
+    {
+      "path": "fixtures/aborted_write_ignored.json",
+      "reproduce": "npm run --silent analyze -- fixtures/aborted_write_ignored.json --json",
+      "argv": ["fixtures/aborted_write_ignored.json", "--json"],
+      "expected": {
+        "historyName": "aborted_write_ignored",
+        "mode": "serializable",
+        "ok": true,
+        "anomaly": "aborted-write-ignored",
+        "serializable": "pass",
+        "strictSerializable": "not-evaluated",
+        "implicatedTransactions": ["T1"],
+        "evidenceKind": "validation-note",
+        "edgeKinds": [],
+        "cycleCount": 0,
+        "kindCounts": {
+          "ww": 0,
+          "wr": 1,
+          "rw": 0,
+          "rt": 0
+        }
+      }
+    },
+    {
+      "path": "fixtures/serial_stock_decrement.json",
+      "reproduce": "npm run --silent analyze -- fixtures/serial_stock_decrement.json --json",
+      "argv": ["fixtures/serial_stock_decrement.json", "--json"],
+      "expected": {
+        "historyName": "serial_stock_decrement",
+        "mode": "serializable",
+        "ok": true,
+        "anomaly": "valid-serial-history",
+        "serializable": "pass",
+        "strictSerializable": "not-evaluated",
+        "implicatedTransactions": [],
+        "evidenceKind": "none",
+        "edgeKinds": [],
+        "cycleCount": 0,
+        "kindCounts": {
+          "ww": 2,
+          "wr": 2,
+          "rw": 1,
+          "rt": 0
+        }
+      }
+    },
+    {
+      "path": "fixtures/stale_read_strict.json",
+      "reproduce": "npm run --silent analyze -- fixtures/stale_read_strict.json --strict --json",
+      "argv": ["fixtures/stale_read_strict.json", "--strict", "--json"],
+      "expected": {
+        "historyName": "stale_read_strict",
+        "mode": "strict-serializable",
+        "ok": false,
+        "anomaly": "strict-stale-read",
+        "serializable": "pass",
+        "strictSerializable": "fail",
+        "implicatedTransactions": ["T1", "T2"],
+        "evidenceKind": "cycle",
+        "edgeKinds": ["rt", "rw"],
+        "cycleCount": 1,
+        "kindCounts": {
+          "ww": 1,
+          "wr": 1,
+          "rw": 1,
+          "rt": 1
+        }
+      }
+    },
+    {
+      "path": "fixtures/write_skew_doctors.json",
+      "reproduce": "npm run --silent analyze -- fixtures/write_skew_doctors.json --json",
+      "argv": ["fixtures/write_skew_doctors.json", "--json"],
+      "expected": {
+        "historyName": "write_skew_doctors",
+        "mode": "serializable",
+        "ok": false,
+        "anomaly": "write-skew",
+        "serializable": "fail",
+        "strictSerializable": "fail",
+        "implicatedTransactions": ["T1", "T2"],
+        "evidenceKind": "cycle",
+        "edgeKinds": ["rw", "rw"],
+        "cycleCount": 1,
+        "kindCounts": {
+          "ww": 2,
+          "wr": 4,
+          "rw": 2,
+          "rt": 0
+        }
+      }
+    }
+  ]
+}

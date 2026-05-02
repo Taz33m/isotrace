@@ -9,7 +9,7 @@ import type { History } from "../src/core/types";
 
 describe("portable artifacts", () => {
   it("validates every checked-in fixture through the shared history schema path", () => {
-    const fixtureFiles = readdirSync("fixtures").filter((file) => file.endsWith(".json")).sort();
+    const fixtureFiles = historyFixtureFiles();
     expect(fixtureFiles.length).toBeGreaterThan(0);
     for (const file of fixtureFiles) {
       const { history, normalized } = parseHistoryJson(readFileSync(join("fixtures", file), "utf8"));
@@ -136,5 +136,12 @@ describe("portable artifacts", () => {
     expect(output).toContain("IsoTrace artifact check passed");
     expect(output).toContain("CLI JSON reports validated: 2");
     expect(output).toContain("CI workflow checked: 1");
+    expect(output).toContain("fixture verdict contracts checked: 4");
   });
 });
+
+function historyFixtureFiles(): string[] {
+  return readdirSync("fixtures")
+    .filter((file) => file.endsWith(".json") && file !== "manifest.json")
+    .sort();
+}

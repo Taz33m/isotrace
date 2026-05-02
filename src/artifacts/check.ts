@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { analyzeHistory } from "../core/analyzer";
 import { parseHistoryJson, validateAnalysisReportArtifact, validateBenchmarkReportArtifact } from "../core/artifacts";
 import { makeAnalysisReport } from "../core/report";
+import type { AnalysisResult, AnomalyClass, EdgeKind, IsolationCheckStatus, IsolationMode, IsolationVerdictEvidence } from "../core/types";
 import { HistoryValidationError } from "../core/validate";
 
 interface CheckResult {
@@ -11,12 +12,40 @@ interface CheckResult {
   count: number;
 }
 
+interface FixtureManifest {
+  schema: "isotrace.fixture-manifest.v1";
+  fixtures: FixtureContract[];
+}
+
+interface FixtureContract {
+  path: string;
+  reproduce: string;
+  argv: string[];
+  expected: FixtureExpectation;
+}
+
+interface FixtureExpectation {
+  historyName: string;
+  mode: IsolationMode;
+  ok: boolean;
+  anomaly: AnomalyClass;
+  serializable: IsolationCheckStatus;
+  strictSerializable: IsolationCheckStatus;
+  implicatedTransactions: string[];
+  evidenceKind: IsolationVerdictEvidence["kind"];
+  edgeKinds: EdgeKind[];
+  cycleCount: number;
+  kindCounts: Record<EdgeKind, number>;
+}
+
 const CI_WORKFLOW_PATH = ".github/workflows/ci.yml";
+const FIXTURE_MANIFEST_PATH = "fixtures/manifest.json";
 const EXPECTED_CI_RUN_COMMANDS = ["npm ci", "npm run check", "npm run smoke:ui", "npm audit --audit-level=moderate"];
 
 function main(): void {
   const results: CheckResult[] = [];
   results.push(validateFixtures());
+  results.push(validateFixtureContracts());
   results.push(validateExamples());
   results.push(validateFixtureReports());
   results.push(validateCliReports());
@@ -29,11 +58,26 @@ function main(): void {
 }
 
 function validateFixtures(): CheckResult {
-  const files = jsonFiles("fixtures");
+  const files = historyFixtureFiles();
   for (const file of files) {
     parseHistoryJson(readFileSync(join("fixtures", file), "utf8"));
   }
   return { label: "fixtures validated", count: files.length };
+}
+
+function validateFixtureContracts(): CheckResult {
+  const manifest = readFixtureManifest();
+  const expectedFixturePaths = historyFixtureFiles().map((file) => join("fixtures", file));
+  assertJsonEqual(
+    manifest.fixtures.map((contract) => contract.path).sort(),
+    expectedFixturePaths,
+    "fixture manifest path coverage",
+  );
+
+  for (const contract of manifest.fixtures) {
+    validateFixtureContract(contract);
+  }
+  return { label: "fixture verdict contracts checked", count: manifest.fixtures.length };
 }
 
 function validateExamples(): CheckResult {
@@ -46,7 +90,7 @@ function validateExamples(): CheckResult {
 }
 
 function validateFixtureReports(): CheckResult {
-  const files = jsonFiles("fixtures");
+  const files = historyFixtureFiles();
   for (const file of files) {
     const path = join("fixtures", file);
     const inputBytes = readFileSync(path);
@@ -97,6 +141,62 @@ function validateCiWorkflow(): CheckResult {
   return { label: "CI workflow checked", count: 1 };
 }
 
+function validateFixtureContract(contract: FixtureContract): void {
+  const strict = contract.expected.mode === "strict-serializable";
+  const expectedReproduce = `npm run --silent analyze -- ${contract.argv.join(" ")}`;
+  if (contract.reproduce !== expectedReproduce) {
+    throw new Error(`${contract.path} reproduce command drifted; expected ${expectedReproduce}`);
+  }
+  if (contract.argv[0] !== contract.path) {
+    throw new Error(`${contract.path} argv must start with its fixture path`);
+  }
+  if (!contract.argv.includes("--json")) {
+    throw new Error(`${contract.path} reproduction argv must include --json`);
+  }
+  if (strict !== contract.argv.includes("--strict")) {
+    throw new Error(`${contract.path} strict mode expectation must match --strict argv`);
+  }
+
+  const inputBytes = readFileSync(contract.path);
+  const { history } = parseHistoryJson(inputBytes.toString("utf8"), { strict });
+  expectFixtureResult(analyzeHistory(history, { strict }), contract, "engine");
+
+  const cliReport = validateAnalysisReportArtifact(JSON.parse(runNpmAnalyze(contract.argv)) as unknown);
+  assertJsonEqual(cliReport.report.command.argv, contract.argv, `${contract.path} CLI report argv`);
+  if (!cliReport.input.path.endsWith(contract.path)) {
+    throw new Error(`${contract.path} CLI report input path drifted: ${cliReport.input.path}`);
+  }
+  expectFixtureResult(cliReport.result, contract, "CLI report");
+}
+
+function expectFixtureResult(result: AnalysisResult, contract: FixtureContract, source: string): void {
+  const actual: FixtureExpectation = {
+    historyName: result.history.name,
+    mode: result.mode,
+    ok: result.ok,
+    anomaly: result.verdict.anomaly.label,
+    serializable: result.verdict.serializable.status,
+    strictSerializable: result.verdict.strictSerializable.status,
+    implicatedTransactions: result.verdict.implicatedTransactions,
+    evidenceKind: result.verdict.evidence.kind,
+    edgeKinds: result.verdict.evidence.edgeKinds,
+    cycleCount: result.cycles.length,
+    kindCounts: result.kindCounts,
+  };
+  assertJsonEqual(actual, contract.expected, `${contract.path} ${source} expected verdict`);
+}
+
+function readFixtureManifest(): FixtureManifest {
+  const parsed = JSON.parse(readFileSync(FIXTURE_MANIFEST_PATH, "utf8")) as Partial<FixtureManifest>;
+  if (parsed.schema !== "isotrace.fixture-manifest.v1") {
+    throw new Error(`${FIXTURE_MANIFEST_PATH} has unexpected schema ${String(parsed.schema)}`);
+  }
+  if (!Array.isArray(parsed.fixtures)) {
+    throw new Error(`${FIXTURE_MANIFEST_PATH} must contain a fixtures array`);
+  }
+  return parsed as FixtureManifest;
+}
+
 function expectInvalidHistoryExample(path: string, expectedMessage: string): void {
   try {
     parseHistoryJson(readFileSync(path, "utf8"));
@@ -105,6 +205,10 @@ function expectInvalidHistoryExample(path: string, expectedMessage: string): voi
     throw error;
   }
   throw new Error(`${path} unexpectedly passed validation`);
+}
+
+function historyFixtureFiles(): string[] {
+  return jsonFiles("fixtures").filter((file) => file !== "manifest.json");
 }
 
 function jsonFiles(directory: string): string[] {
@@ -117,8 +221,22 @@ function expectContains(text: string, needle: string, label: string): void {
   }
 }
 
+function assertJsonEqual(actual: unknown, expected: unknown, label: string): void {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error(`${label} drifted; expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+  }
+}
+
 function runNode(args: string[]): string {
   return execFileSync(process.execPath, ["--import", "tsx", ...args], {
+    cwd: process.cwd(),
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+}
+
+function runNpmAnalyze(argv: string[]): string {
+  return execFileSync("npm", ["run", "--silent", "analyze", "--", ...argv], {
     cwd: process.cwd(),
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
