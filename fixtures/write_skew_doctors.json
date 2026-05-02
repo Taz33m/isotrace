@@ -1,0 +1,40 @@
+{
+  "name": "write_skew_doctors",
+  "description": "Two doctors each see both doctors on call, then independently go off call. The final state violates the invariant even though the writes are disjoint.",
+  "mode": "serializable",
+  "transactions": [
+    {
+      "id": "T0",
+      "label": "initial state",
+      "commit": 0,
+      "ops": [
+        { "type": "write", "key": "doctor/alice_on_call", "value": true },
+        { "type": "write", "key": "doctor/bob_on_call", "value": true }
+      ]
+    },
+    {
+      "id": "T1",
+      "label": "alice signs off",
+      "process": "session-a",
+      "begin": 1,
+      "commit": 4,
+      "ops": [
+        { "type": "read", "key": "doctor/alice_on_call", "value": true, "from": "T0" },
+        { "type": "read", "key": "doctor/bob_on_call", "value": true, "from": "T0" },
+        { "type": "write", "key": "doctor/alice_on_call", "value": false }
+      ]
+    },
+    {
+      "id": "T2",
+      "label": "bob signs off",
+      "process": "session-b",
+      "begin": 2,
+      "commit": 5,
+      "ops": [
+        { "type": "read", "key": "doctor/alice_on_call", "value": true, "from": "T0" },
+        { "type": "read", "key": "doctor/bob_on_call", "value": true, "from": "T0" },
+        { "type": "write", "key": "doctor/bob_on_call", "value": false }
+      ]
+    }
+  ]
+}

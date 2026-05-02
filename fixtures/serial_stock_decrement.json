@@ -1,0 +1,37 @@
+{
+  "name": "serial_stock_decrement",
+  "description": "Two stock decrement transactions observe the latest committed version before writing the next version, so the dependency graph stays acyclic.",
+  "mode": "serializable",
+  "transactions": [
+    {
+      "id": "T0",
+      "label": "initial stock",
+      "commit": 0,
+      "ops": [
+        { "type": "write", "key": "sku/needle_stock", "value": 2 }
+      ]
+    },
+    {
+      "id": "T1",
+      "label": "first order",
+      "process": "worker-1",
+      "begin": 1,
+      "commit": 3,
+      "ops": [
+        { "type": "read", "key": "sku/needle_stock", "value": 2, "from": "T0" },
+        { "type": "write", "key": "sku/needle_stock", "value": 1 }
+      ]
+    },
+    {
+      "id": "T2",
+      "label": "second order",
+      "process": "worker-2",
+      "begin": 4,
+      "commit": 6,
+      "ops": [
+        { "type": "read", "key": "sku/needle_stock", "value": 1, "from": "T1" },
+        { "type": "write", "key": "sku/needle_stock", "value": 0 }
+      ]
+    }
+  ]
+}

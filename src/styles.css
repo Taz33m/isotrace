@@ -1,0 +1,546 @@
+:root {
+  color: #17202a;
+  background: #f5f7fa;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+code {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+.appShell {
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.topbar {
+  align-items: center;
+  display: flex;
+  gap: 24px;
+  justify-content: space-between;
+  margin: 0 auto 18px;
+  max-width: 1440px;
+}
+
+.eyebrow {
+  color: #506070;
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  color: #111827;
+  font-size: 2.2rem;
+  line-height: 1.05;
+}
+
+.topbar p {
+  color: #465568;
+  margin-top: 8px;
+  max-width: 720px;
+}
+
+.verdict {
+  align-items: center;
+  border: 1px solid;
+  border-radius: 8px;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 12px;
+  min-width: 230px;
+  padding: 14px 16px;
+}
+
+.verdict span,
+.verdict strong {
+  display: block;
+}
+
+.verdict span {
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.verdict strong {
+  font-size: 0.78rem;
+  font-weight: 650;
+  margin-top: 2px;
+}
+
+.verdictOk {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #047857;
+}
+
+.verdictBad {
+  background: #fff7ed;
+  border-color: #fed7aa;
+  color: #c2410c;
+}
+
+.workbench {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 260px minmax(0, 1fr);
+  margin: 0 auto;
+  max-width: 1440px;
+}
+
+.scenarioRail,
+.panel {
+  background: #ffffff;
+  border: 1px solid #d8e0ea;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.scenarioRail {
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+}
+
+.railHeader,
+.panel h2 {
+  align-items: center;
+  color: #1f2937;
+  display: flex;
+  font-size: 0.92rem;
+  font-weight: 800;
+  gap: 8px;
+}
+
+.scenarioButton {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #dbe3ed;
+  border-radius: 8px;
+  color: #1f2937;
+  display: flex;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.scenarioButton:hover {
+  border-color: #94a3b8;
+}
+
+.scenarioButton.active {
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #1d4ed8;
+}
+
+.scenarioButton small {
+  color: #64748b;
+  font-weight: 700;
+}
+
+.modePanel {
+  border-top: 1px solid #e5eaf1;
+  margin-top: 4px;
+  padding-top: 14px;
+}
+
+.modePanel > span {
+  color: #475569;
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 800;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.segmented {
+  background: #eef2f7;
+  border-radius: 8px;
+  display: grid;
+  gap: 4px;
+  grid-template-columns: 1fr 1fr;
+  padding: 4px;
+}
+
+.segmented button {
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: #475569;
+  font-size: 0.84rem;
+  min-height: 34px;
+}
+
+.segmented button.selected {
+  background: #ffffff;
+  color: #111827;
+  font-weight: 800;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.commandBox {
+  align-items: center;
+  background: #111827;
+  border-radius: 8px;
+  color: #e5e7eb;
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 11px 12px;
+}
+
+.commandBox code {
+  font-size: 0.76rem;
+  overflow-wrap: anywhere;
+}
+
+.graphLegend {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-bottom: 8px;
+}
+
+.graphLegend span {
+  align-items: center;
+  color: #475569;
+  display: inline-flex;
+  font-size: 0.76rem;
+  font-weight: 700;
+  gap: 5px;
+}
+
+.graphLegend i {
+  border-radius: 50%;
+  display: inline-block;
+  height: 9px;
+  width: 9px;
+}
+
+.graphLegend code {
+  color: #111827;
+  font-size: 0.74rem;
+  font-weight: 900;
+}
+
+.mainGrid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.9fr);
+  grid-template-rows: auto auto;
+}
+
+.panel {
+  min-width: 0;
+  overflow: hidden;
+  padding: 16px;
+}
+
+.panel h2 {
+  border-bottom: 1px solid #e5eaf1;
+  margin: -2px -2px 12px;
+  padding: 0 0 10px;
+}
+
+.historyPanel {
+  grid-column: 1 / 2;
+}
+
+.graphPanel {
+  grid-column: 2 / 3;
+}
+
+.proofPanel,
+.edgesPanel {
+  grid-column: span 1;
+}
+
+.scenarioDescription {
+  color: #475569;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  margin-bottom: 12px;
+}
+
+.historyTable,
+.edgeTable {
+  border: 1px solid #e5eaf1;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.historyRow,
+.edgeRow {
+  display: grid;
+  gap: 12px;
+}
+
+.historyRow {
+  grid-template-columns: 150px 90px minmax(0, 1fr);
+}
+
+.edgeRow {
+  grid-template-columns: 74px 70px 70px minmax(0, 1fr);
+}
+
+.historyRow,
+.edgeRow {
+  align-items: start;
+  border-top: 1px solid #e5eaf1;
+  color: #243244;
+  font-size: 0.83rem;
+  padding: 10px 12px;
+}
+
+.historyRow:first-child,
+.edgeRow:first-child {
+  border-top: 0;
+}
+
+.historyRow.header,
+.edgeRow.header {
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.historyRow strong,
+.historyRow small {
+  display: block;
+}
+
+.historyRow small {
+  color: #64748b;
+  font-size: 0.75rem;
+  margin-top: 2px;
+}
+
+.historyRow.ignored {
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.opsList {
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.graphSvg {
+  display: block;
+  height: 390px;
+  width: 100%;
+}
+
+.graphEdge {
+  fill: none;
+  stroke-width: 1.7;
+}
+
+.graphEdge.cycle {
+  stroke-width: 3;
+}
+
+.edgeLabel {
+  fill: #334155;
+  font-size: 13px;
+  font-weight: 800;
+  paint-order: stroke;
+  stroke: #ffffff;
+  stroke-width: 4px;
+}
+
+.cycleText {
+  fill: #dc2626;
+}
+
+.graphNode {
+  fill: #ffffff;
+  stroke: #94a3b8;
+  stroke-width: 1.5;
+}
+
+.nodeId {
+  fill: #111827;
+  font-size: 14px;
+  font-weight: 900;
+  text-anchor: middle;
+}
+
+.nodeMeta {
+  fill: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  text-anchor: middle;
+}
+
+.proofEmpty {
+  align-items: flex-start;
+  color: #166534;
+  display: flex;
+  gap: 12px;
+  line-height: 1.5;
+}
+
+.notesBox {
+  background: #f8fafc;
+  border: 1px solid #e5eaf1;
+  border-radius: 8px;
+  color: #475569;
+  display: grid;
+  font-size: 0.82rem;
+  gap: 6px;
+  line-height: 1.4;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+}
+
+.proofStack {
+  display: grid;
+  gap: 12px;
+}
+
+.cycleCard {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.cycleCard strong {
+  color: #9a3412;
+  display: block;
+  line-height: 1.35;
+}
+
+.cycleCard ol {
+  color: #3f2a1d;
+  margin: 10px 0 0;
+  padding-left: 20px;
+}
+
+.cycleCard li {
+  line-height: 1.45;
+  margin-top: 8px;
+}
+
+.cycleCard code {
+  background: #ffedd5;
+  border-radius: 5px;
+  color: #9a3412;
+  margin-right: 8px;
+  padding: 2px 5px;
+}
+
+.edgeTable {
+  max-height: 330px;
+  overflow: auto;
+}
+
+.edgeKind {
+  border-radius: 5px;
+  color: #ffffff;
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 900;
+  padding: 3px 6px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.edgeKind.ww {
+  background: #2563eb;
+}
+
+.edgeKind.wr {
+  background: #0f766e;
+}
+
+.edgeKind.rw {
+  background: #b45309;
+}
+
+.edgeKind.rt {
+  background: #7c3aed;
+}
+
+.cycleEdgeRow {
+  background: #fff7ed;
+}
+
+@media (max-width: 1100px) {
+  .topbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .workbench,
+  .mainGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .graphPanel,
+  .historyPanel,
+  .proofPanel,
+  .edgesPanel {
+    grid-column: 1;
+  }
+
+  .scenarioRail {
+    position: static;
+  }
+}
+
+@media (max-width: 680px) {
+  .appShell {
+    padding: 14px;
+  }
+
+  h1 {
+    font-size: 1.8rem;
+  }
+
+  .historyRow,
+  .edgeRow {
+    grid-template-columns: 1fr;
+  }
+
+  .graphSvg {
+    height: 330px;
+  }
+}

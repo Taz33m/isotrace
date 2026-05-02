@@ -1,0 +1,35 @@
+{
+  "name": "stale_read_strict",
+  "description": "A reader starts after a write has committed but reads the old version. It can be serialized before the writer, but strict serializability rejects the realtime order.",
+  "mode": "strict-serializable",
+  "transactions": [
+    {
+      "id": "T0",
+      "label": "initial flag",
+      "commit": 0,
+      "ops": [
+        { "type": "write", "key": "flag/ready", "value": false }
+      ]
+    },
+    {
+      "id": "T1",
+      "label": "writer commits ready",
+      "process": "writer",
+      "begin": 1,
+      "commit": 2,
+      "ops": [
+        { "type": "write", "key": "flag/ready", "value": true }
+      ]
+    },
+    {
+      "id": "T2",
+      "label": "late reader sees stale value",
+      "process": "reader",
+      "begin": 3,
+      "commit": 4,
+      "ops": [
+        { "type": "read", "key": "flag/ready", "value": false, "from": "T0" }
+      ]
+    }
+  ]
+}

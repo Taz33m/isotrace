@@ -1,0 +1,36 @@
+{
+  "name": "aborted_write_ignored",
+  "description": "An aborted write is present in the history but is excluded from committed-version order.",
+  "mode": "serializable",
+  "transactions": [
+    {
+      "id": "T0",
+      "label": "initial balance",
+      "commit": 0,
+      "ops": [
+        { "type": "write", "key": "acct/7_balance", "value": 100 }
+      ]
+    },
+    {
+      "id": "T1",
+      "label": "aborted debit",
+      "process": "worker-1",
+      "begin": 1,
+      "commit": 2,
+      "status": "aborted",
+      "ops": [
+        { "type": "write", "key": "acct/7_balance", "value": 50 }
+      ]
+    },
+    {
+      "id": "T2",
+      "label": "auditor read",
+      "process": "auditor",
+      "begin": 3,
+      "commit": 4,
+      "ops": [
+        { "type": "read", "key": "acct/7_balance", "value": 100, "from": "T0" }
+      ]
+    }
+  ]
+}
