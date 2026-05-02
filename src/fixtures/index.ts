@@ -4,6 +4,7 @@ import staleReadStrict from "../../fixtures/stale_read_strict.json";
 import strictSerialHandoff from "../../fixtures/strict_serial_handoff.json";
 import abortedWriteIgnored from "../../fixtures/aborted_write_ignored.json";
 import phantomPredicateCycle from "../../fixtures/phantom_predicate_cycle.json";
+import compositePredicateDeleteCycle from "../../fixtures/composite_predicate_delete_cycle.json";
 import type { History } from "../core/types";
 
 export interface FixtureEntry {
@@ -22,6 +23,11 @@ export const fixtureCatalog: FixtureEntry[] = [
     slug: "phantom_predicate_cycle",
     title: "Explicit predicate phantom",
     history: phantomPredicateCycle as History,
+  },
+  {
+    slug: "composite_predicate_delete_cycle",
+    title: "Composite predicate delete",
+    history: compositePredicateDeleteCycle as History,
   },
   {
     slug: "stale_read_strict",

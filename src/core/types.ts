@@ -6,13 +6,29 @@ export type TransactionStatus = "committed" | "aborted";
 
 export type PredicateOperator = "=" | "!=" | "<" | "<=" | ">" | ">=";
 
-export interface PredicateExpression {
+export type PredicateExpression = PredicateLeaf | PredicateAll | PredicateAny | PredicateNot;
+
+export interface PredicateLeaf {
   column: string;
   op: PredicateOperator;
   value: JsonValue;
 }
 
+export interface PredicateAll {
+  all: PredicateExpression[];
+}
+
+export interface PredicateAny {
+  any: PredicateExpression[];
+}
+
+export interface PredicateNot {
+  not: PredicateExpression;
+}
+
 export type PredicateReadRow = { id: JsonValue } & Record<string, JsonValue>;
+
+export type WriteMutation = "insert" | "update" | "delete";
 
 export interface ReadOp {
   type: "read";
@@ -29,6 +45,9 @@ export interface WriteOp {
   table?: string;
   rowId?: JsonValue;
   fields?: Record<string, JsonValue>;
+  mutation?: WriteMutation;
+  rowBefore?: Record<string, JsonValue> | null;
+  rowAfter?: Record<string, JsonValue> | null;
 }
 
 export interface PredicateReadEvidence {
@@ -71,6 +90,7 @@ export type EdgeKind = "ww" | "wr" | "rw" | "prw" | "rt";
 export interface PredicateMembershipChange {
   beforeMatches: boolean;
   afterMatches: boolean;
+  mutation?: WriteMutation;
 }
 
 export interface DependencyEdge {
@@ -84,6 +104,7 @@ export interface DependencyEdge {
   rowId?: JsonValue;
   predicate?: PredicateExpression;
   predicateChange?: PredicateMembershipChange;
+  mutation?: WriteMutation;
   reason: string;
 }
 

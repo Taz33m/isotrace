@@ -45,6 +45,11 @@ function runCliProofSmoke(): void {
   assertIncludes(phantom, "Proof edges: e3 -> e4 (prw -> prw)", "phantom demo reports prw proof edge sequence");
   assertIncludes(phantom, "predicate-read/write anti-dependency", "phantom demo reports predicate proof facts");
 
+  const predicate2 = runIsoTraceCli(["fixtures/composite_predicate_delete_cycle.json"]);
+  assertIncludes(predicate2, "Anomaly: Explicit predicate phantom [predicate-dependency-cycle]", "composite predicate demo reports predicate anomaly label");
+  assertIncludes(predicate2, "Proof edges: e3 -> e4 (prw -> prw)", "composite predicate demo reports prw proof edge sequence");
+  assertIncludes(predicate2, "delete changed row", "composite predicate demo reports mutation proof facts");
+
   const violationGate = runIsoTraceCliForStatus(["fixtures/write_skew_doctors.json", "--fail-on-violation"], 2);
   assertIncludes(violationGate.stdout, "Result: VIOLATION", "fail-on-violation prints proof output before exiting 2");
   assertIncludes(violationGate.stdout, "Anomaly: Write skew [write-skew]", "fail-on-violation keeps semantic verdict text");
@@ -304,6 +309,20 @@ async function verifyWorkbench(page: Page, url: string): Promise<void> {
     throw new Error("UI smoke expected a selectable predicate verdict proof edge");
   }
   await page.getByTestId("selected-edge").filter({ hasText: selectedPredicateEdgeId }).filter({ hasText: "prw" }).waitFor({ state: "visible" });
+
+  await page.getByTestId("scenario-composite_predicate_delete_cycle").click();
+  await page.getByRole("heading", { name: "composite_predicate_delete_cycle" }).waitFor({ state: "visible" });
+  await page.getByTestId("verdict-panel").filter({ hasText: "Explicit predicate phantom" }).waitFor({ state: "visible" });
+  await page.getByTestId("verdict-panel").filter({ hasText: "predicate-dependency-cycle" }).waitFor({ state: "visible" });
+  await page.getByTestId("verdict-panel").filter({ hasText: "delete changed row" }).waitFor({ state: "visible" });
+  const compositePredicateEdge = page.locator("[data-testid^='verdict-edge-']").first();
+  await compositePredicateEdge.waitFor({ state: "visible" });
+  await compositePredicateEdge.click();
+  const selectedCompositeEdgeId = (await compositePredicateEdge.getAttribute("data-testid"))?.replace("verdict-edge-", "");
+  if (!selectedCompositeEdgeId) {
+    throw new Error("UI smoke expected a selectable composite predicate proof edge");
+  }
+  await page.getByTestId("selected-edge").filter({ hasText: selectedCompositeEdgeId }).filter({ hasText: "prw" }).filter({ hasText: "delete" }).waitFor({ state: "visible" });
 
   const validHistory = {
     name: "ui_smoke_custom",

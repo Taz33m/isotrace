@@ -428,6 +428,9 @@
         "predicateChange": {
           "$ref": "#/$defs/predicateMembershipChange"
         },
+        "mutation": {
+          "enum": ["insert", "update", "delete"]
+        },
         "reason": {
           "type": "string",
           "minLength": 1
@@ -494,6 +497,22 @@
       }
     },
     "predicateExpression": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/predicateLeaf"
+        },
+        {
+          "$ref": "#/$defs/predicateAll"
+        },
+        {
+          "$ref": "#/$defs/predicateAny"
+        },
+        {
+          "$ref": "#/$defs/predicateNot"
+        }
+      ]
+    },
+    "predicateLeaf": {
       "type": "object",
       "additionalProperties": false,
       "required": ["column", "op", "value"],
@@ -510,6 +529,44 @@
         }
       }
     },
+    "predicateAll": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["all"],
+      "properties": {
+        "all": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/predicateExpression"
+          }
+        }
+      }
+    },
+    "predicateAny": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["any"],
+      "properties": {
+        "any": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/predicateExpression"
+          }
+        }
+      }
+    },
+    "predicateNot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["not"],
+      "properties": {
+        "not": {
+          "$ref": "#/$defs/predicateExpression"
+        }
+      }
+    },
     "predicateMembershipChange": {
       "type": "object",
       "additionalProperties": false,
@@ -520,6 +577,9 @@
         },
         "afterMatches": {
           "type": "boolean"
+        },
+        "mutation": {
+          "enum": ["insert", "update", "delete"]
         }
       }
     },

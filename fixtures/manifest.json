@@ -27,6 +27,31 @@
       }
     },
     {
+      "path": "fixtures/composite_predicate_delete_cycle.json",
+      "reproduce": "npm run --silent analyze -- fixtures/composite_predicate_delete_cycle.json --json",
+      "argv": ["fixtures/composite_predicate_delete_cycle.json", "--json"],
+      "expected": {
+        "historyName": "composite_predicate_delete_cycle",
+        "mode": "serializable",
+        "ok": false,
+        "anomaly": "predicate-dependency-cycle",
+        "serializable": "fail",
+        "strictSerializable": "fail",
+        "implicatedTransactions": ["T1", "T2"],
+        "evidenceKind": "cycle",
+        "edgeKinds": ["prw", "prw"],
+        "cycleCount": 1,
+        "orderWitness": null,
+        "kindCounts": {
+          "ww": 2,
+          "wr": 0,
+          "rw": 0,
+          "prw": 2,
+          "rt": 0
+        }
+      }
+    },
+    {
       "path": "fixtures/serial_stock_decrement.json",
       "reproduce": "npm run --silent analyze -- fixtures/serial_stock_decrement.json --json",
       "argv": ["fixtures/serial_stock_decrement.json", "--json"],

@@ -1,6 +1,6 @@
-import type { History, IsolationMode, JsonValue, PredicateExpression, PredicateReadOp, ReadOp, Transaction, TransactionStatus, TxOp, WriteOp } from "./types";
+import type { History, IsolationMode, JsonValue, PredicateExpression, PredicateOperator, PredicateReadOp, ReadOp, Transaction, TransactionStatus, TxOp, WriteMutation, WriteOp } from "./types";
 import { formatJsonValue } from "./format";
-import { evaluatePredicate, formatPredicate, jsonEqual } from "./predicate";
+import { evaluatePredicateTruth, formatPredicate, jsonEqual } from "./predicate";
 
 const INITIAL_TRANSACTION_ID = "T0";
 
@@ -158,7 +158,13 @@ function validateReadPredicateEvidence(txId: string, op: ReadOp, opIndex: number
 }
 
 function validateRelationalWrite(txId: string, op: WriteOp, opIndex: number): void {
-  const hasAny = op.table !== undefined || op.rowId !== undefined || op.fields !== undefined;
+  const hasAny =
+    op.table !== undefined ||
+    op.rowId !== undefined ||
+    op.fields !== undefined ||
+    op.mutation !== undefined ||
+    op.rowBefore !== undefined ||
+    op.rowAfter !== undefined;
   if (!hasAny) return;
   if (!isNonEmptyString(op.table)) {
     throw new HistoryValidationError(`${txId} write ${op.key} relational metadata at op ${opIndex} requires table`);
@@ -166,13 +172,36 @@ function validateRelationalWrite(txId: string, op: WriteOp, opIndex: number): vo
   if (!("rowId" in op) || !isJsonValue(op.rowId)) {
     throw new HistoryValidationError(`${txId} write ${op.key} relational metadata at op ${opIndex} requires rowId`);
   }
-  if (!isRecord(op.fields)) {
+  if (op.mutation !== undefined && !isWriteMutation(op.mutation)) {
+    throw new HistoryValidationError(`${txId} write ${op.key} relational metadata at op ${opIndex} has invalid mutation`);
+  }
+  const fields = op.fields === undefined ? undefined : validateRowObject(txId, op.key, "fields", op.fields, opIndex, op.rowId);
+  const rowBefore = op.rowBefore === undefined || op.rowBefore === null ? op.rowBefore : validateRowObject(txId, op.key, "rowBefore", op.rowBefore, opIndex, op.rowId);
+  const rowAfter = op.rowAfter === undefined || op.rowAfter === null ? op.rowAfter : validateRowObject(txId, op.key, "rowAfter", op.rowAfter, opIndex, op.rowId);
+
+  if (op.mutation === "delete") {
+    if (rowBefore === undefined || rowBefore === null) {
+      throw new HistoryValidationError(`${txId} write ${op.key} delete metadata at op ${opIndex} requires rowBefore`);
+    }
+    if (rowAfter !== undefined && rowAfter !== null) {
+      throw new HistoryValidationError(`${txId} write ${op.key} delete metadata at op ${opIndex} requires rowAfter to be null or absent`);
+    }
+    if (fields !== undefined) {
+      throw new HistoryValidationError(`${txId} write ${op.key} delete metadata at op ${opIndex} must not include fields`);
+    }
+    return;
+  }
+
+  if (op.mutation === "insert" || op.mutation === "update") {
+    if (fields === undefined && (rowAfter === undefined || rowAfter === null)) {
+      throw new HistoryValidationError(`${txId} write ${op.key} ${op.mutation} metadata at op ${opIndex} requires fields or rowAfter`);
+    }
+  } else if (fields === undefined) {
     throw new HistoryValidationError(`${txId} write ${op.key} relational metadata at op ${opIndex} requires fields`);
   }
-  for (const [field, value] of Object.entries(op.fields)) {
-    if (!isNonEmptyString(field) || !isJsonValue(value)) {
-      throw new HistoryValidationError(`${txId} write ${op.key} relational field ${field} at op ${opIndex} must be a JSON value`);
-    }
+
+  if (fields !== undefined && rowAfter !== undefined && rowAfter !== null) {
+    rejectConflictingRowEvidence(txId, op.key, fields, rowAfter, opIndex);
   }
 }
 
@@ -202,7 +231,7 @@ function validatePredicateRead(txId: string, op: PredicateReadOp, opIndex: numbe
         throw new HistoryValidationError(`${txId} predicate-read ${op.table} row field ${field} must be a JSON value`);
       }
     }
-    if (!evaluatePredicate(row as Record<string, JsonValue>, op.predicate)) {
+    if (evaluatePredicateTruth(row as Record<string, JsonValue>, op.predicate) !== true) {
       throw new HistoryValidationError(
         `${txId} predicate-read ${op.table} row ${formatJsonValue(row.id)} does not satisfy predicate ${formatPredicate(op.predicate)}`,
       );
@@ -211,7 +240,32 @@ function validatePredicateRead(txId: string, op: PredicateReadOp, opIndex: numbe
 }
 
 function validatePredicate(txId: string, predicate: PredicateExpression, opIndex: number): void {
-  if (!isRecord(predicate) || !isNonEmptyString(predicate.column)) {
+  if (!isRecord(predicate)) {
+    throw new HistoryValidationError(`${txId} predicate-read at op ${opIndex} requires predicate object`);
+  }
+  const forms = [isRecord(predicate) && "column" in predicate, "all" in predicate, "any" in predicate, "not" in predicate].filter(Boolean).length;
+  if (forms !== 1) {
+    throw new HistoryValidationError(`${txId} predicate-read at op ${opIndex} must use exactly one predicate form`);
+  }
+  if ("all" in predicate) {
+    if (!Array.isArray(predicate.all) || predicate.all.length === 0) {
+      throw new HistoryValidationError(`${txId} predicate-read at op ${opIndex} requires non-empty predicate.all`);
+    }
+    predicate.all.forEach((child) => validatePredicate(txId, child, opIndex));
+    return;
+  }
+  if ("any" in predicate) {
+    if (!Array.isArray(predicate.any) || predicate.any.length === 0) {
+      throw new HistoryValidationError(`${txId} predicate-read at op ${opIndex} requires non-empty predicate.any`);
+    }
+    predicate.any.forEach((child) => validatePredicate(txId, child, opIndex));
+    return;
+  }
+  if ("not" in predicate) {
+    validatePredicate(txId, predicate.not as PredicateExpression, opIndex);
+    return;
+  }
+  if (!isNonEmptyString(predicate.column)) {
     throw new HistoryValidationError(`${txId} predicate-read at op ${opIndex} requires predicate.column`);
   }
   if (!isPredicateOperator(predicate.op)) {
@@ -222,8 +276,50 @@ function validatePredicate(txId: string, predicate: PredicateExpression, opIndex
   }
 }
 
-function isPredicateOperator(value: unknown): value is PredicateExpression["op"] {
+function isPredicateOperator(value: unknown): value is PredicateOperator {
   return value === "=" || value === "!=" || value === "<" || value === "<=" || value === ">" || value === ">=";
+}
+
+function isWriteMutation(value: unknown): value is WriteMutation {
+  return value === "insert" || value === "update" || value === "delete";
+}
+
+function validateRowObject(
+  txId: string,
+  key: string,
+  label: string,
+  value: unknown,
+  opIndex: number,
+  rowId: JsonValue,
+): Record<string, JsonValue> {
+  if (!isRecord(value)) {
+    throw new HistoryValidationError(`${txId} write ${key} ${label} at op ${opIndex} must be an object`);
+  }
+  const row: Record<string, JsonValue> = {};
+  for (const [field, fieldValue] of Object.entries(value)) {
+    if (!isNonEmptyString(field) || !isJsonValue(fieldValue)) {
+      throw new HistoryValidationError(`${txId} write ${key} ${label}.${field} at op ${opIndex} must be a JSON value`);
+    }
+    row[field] = fieldValue;
+  }
+  if ("id" in row && !jsonEqual(row.id, rowId)) {
+    throw new HistoryValidationError(`${txId} write ${key} ${label}.id at op ${opIndex} must match rowId`);
+  }
+  return row;
+}
+
+function rejectConflictingRowEvidence(
+  txId: string,
+  key: string,
+  fields: Record<string, JsonValue>,
+  rowAfter: Record<string, JsonValue>,
+  opIndex: number,
+): void {
+  for (const [field, value] of Object.entries(fields)) {
+    if (field in rowAfter && !jsonEqual(value, rowAfter[field] as JsonValue)) {
+      throw new HistoryValidationError(`${txId} write ${key} fields.${field} conflicts with rowAfter.${field} at op ${opIndex}`);
+    }
+  }
 }
 
 function compareCommittedVersionOrder(

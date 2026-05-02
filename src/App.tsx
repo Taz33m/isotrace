@@ -382,7 +382,7 @@ function formatOp(op: TxOp): string {
     const note = op.note ? ` note=${op.note}` : "";
     return `predicate-read ${op.table} where ${formatPredicate(op.predicate)} rows=${op.returnedRows.length}${sql}${note}`;
   }
-  return `write ${op.key}=${formatJsonValue(op.value)}`;
+  return `write ${op.key}=${formatJsonValue(op.value)}${op.mutation ? ` mutation=${op.mutation}` : ""}`;
 }
 
 function isEdgeEndpoint(txId: string, edge: DependencyEdge | null): boolean {

@@ -38,10 +38,11 @@ export function buildProofEdgeFact(edge: DependencyEdge): ProofEdgeFact {
     const row = edge.rowId !== undefined ? formatJsonValue(edge.rowId) : key;
     const before = edge.predicateChange?.beforeMatches ? "returned" : "did not return";
     const after = edge.predicateChange?.afterMatches ? "matched" : "did not match";
+    const mutation = edge.mutation ?? edge.predicateChange?.mutation ?? "update";
     return withSummary({
       ...base,
       sourceFact: `${edge.from} predicate-read ${edge.table ?? "table"} where ${predicate} ${before} row ${row}`,
-      targetFact: `${edge.to} changed row ${row} so it ${after} the predicate, creating a predicate-read/write anti-dependency`,
+      targetFact: `${edge.to} ${mutation} changed row ${row} so it ${after} the predicate, creating a predicate-read/write anti-dependency`,
     });
   }
   return withSummary({

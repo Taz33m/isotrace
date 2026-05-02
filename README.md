@@ -33,6 +33,7 @@ npm run check
 npm run demo
 npm run demo:sql
 npm run demo:phantom
+npm run demo:predicate2
 npm run smoke:ui
 ```
 
@@ -69,6 +70,14 @@ npm run demo:phantom
 ```
 
 That fixture models two predicate reads and two relational writes whose row-membership changes create a `prw` / `prw` cycle. This is explicit predicate-read evidence, not SQL range inference.
+
+Run the composite predicate/delete demo:
+
+```bash
+npm run demo:predicate2
+```
+
+That fixture uses explicit `all` predicates plus modeled deletes. It still relies on supplied row evidence, not database snapshot inference.
 
 Open the workbench:
 
@@ -130,7 +139,7 @@ Predicate reads use an explicit operation, not SQL parsing:
 }
 ```
 
-Writes may carry optional relational metadata (`table`, `rowId`, `fields`) so the analyzer can evaluate whether the write changed membership in a modeled predicate result. If one of those metadata fields is present, all three are required.
+Predicates may be leaves (`column`, `op`, `value`) or explicit composites with `all`, `any`, and `not`. Writes may carry relational metadata (`table`, `rowId`, `fields`) plus optional `mutation`, `rowBefore`, and `rowAfter` so the analyzer can evaluate modeled insert/update/delete membership changes.
 
 Version order is explicit rather than inferred from read values. `T0` is reserved for an initial seed transaction when present; its optional `commit` is allowed but does not force the rest of the fixture into timestamped ordering. For committed transactions other than `T0`, either every transaction supplies a numeric `commit` and IsoTrace orders versions by commit time, or every transaction omits `commit` and IsoTrace uses fixture order. Mixed explicit/missing commits among non-initial committed transactions are rejected because the version order would be ambiguous.
 
@@ -158,6 +167,7 @@ npm run demo
 npm run demo:strict
 npm run demo:sql
 npm run demo:phantom
+npm run demo:predicate2
 npm run fixtures
 npm run bench
 npm run bench -- --json
@@ -168,6 +178,7 @@ npm run analyze -- examples/valid_history.json --validate
 npm run analyze -- examples/write_skew_sql_trace.sql --sql-trace
 npm run analyze -- fixtures/write_skew_doctors.json --json
 npm run analyze -- fixtures/phantom_predicate_cycle.json --json
+npm run analyze -- fixtures/composite_predicate_delete_cycle.json --json
 ```
 
 `npm run check` runs typecheck, tests, production build, and the benchmark smoke. The `--json` CLI mode emits a report envelope with schema version, tool version, command, runtime, git state, input byte count, input SHA-256, and the full analysis result. That result includes the full input history, so do not use it for histories containing secrets unless printing those values is acceptable.
@@ -199,7 +210,7 @@ The benchmark uses generated serial histories to smoke-test graph construction a
 
 - No live database adapter.
 - No general SQL parser. The SQL importer is constrained trace syntax, not database SQL coverage.
-- Explicit predicate-read phantom-style edges only. IsoTrace evaluates supplied predicate objects against supplied row fields; it does not infer missing rows, ranges, joins, SQL expressions, or database snapshots.
+- Explicit predicate-read phantom-style edges only. IsoTrace evaluates supplied predicate objects against supplied row fields and modeled insert/update/delete row evidence; it does not infer missing rows, ranges, joins, SQL expressions, or database snapshots.
 - No claim of full Elle compatibility.
 - No certification of any database system.
 - Equal non-initial commit timestamps are rejected because the v1 model needs unambiguous version order.
@@ -214,5 +225,5 @@ IsoTrace is not a dashboard around fake telemetry. The core artifact is a determ
 
 - Richer editor affordances around schema errors, without broadening the input model.
 - More cycle witnesses per SCC when multiple independent causes exist.
-- Composite predicates and richer predicate evidence, if the input format grows enough to support it honestly.
+- More precise missing-row evidence for predicates, if the input format grows enough to support it honestly.
 - More stable benchmark methodology with warmups and repeated samples.

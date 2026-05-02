@@ -1,0 +1,86 @@
+{
+  "name": "composite_predicate_delete_cycle",
+  "description": "Two transactions predicate-read composite doctor role sets, then delete each other's returned row so both modeled predicate memberships change.",
+  "transactions": [
+    {
+      "id": "T0",
+      "commit": 0,
+      "ops": [
+        {
+          "type": "write",
+          "key": "doctors/alice",
+          "value": { "id": "alice", "on_call": true, "role": "attending" },
+          "table": "doctors",
+          "rowId": "alice",
+          "mutation": "insert",
+          "rowAfter": { "id": "alice", "on_call": true, "role": "attending" }
+        },
+        {
+          "type": "write",
+          "key": "doctors/bob",
+          "value": { "id": "bob", "on_call": true, "role": "resident" },
+          "table": "doctors",
+          "rowId": "bob",
+          "mutation": "insert",
+          "rowAfter": { "id": "bob", "on_call": true, "role": "resident" }
+        }
+      ]
+    },
+    {
+      "id": "T1",
+      "begin": 1,
+      "commit": 2,
+      "ops": [
+        {
+          "type": "predicate-read",
+          "table": "doctors",
+          "predicate": {
+            "all": [
+              { "column": "on_call", "op": "=", "value": true },
+              { "column": "role", "op": "=", "value": "attending" }
+            ]
+          },
+          "returnedRows": [{ "id": "alice", "on_call": true, "role": "attending" }],
+          "sourceSql": "SELECT * FROM doctors WHERE on_call = true AND role = 'attending'"
+        },
+        {
+          "type": "write",
+          "key": "doctors/bob",
+          "value": null,
+          "table": "doctors",
+          "rowId": "bob",
+          "mutation": "delete",
+          "rowBefore": { "id": "bob", "on_call": true, "role": "resident" }
+        }
+      ]
+    },
+    {
+      "id": "T2",
+      "begin": 1.5,
+      "commit": 3,
+      "ops": [
+        {
+          "type": "predicate-read",
+          "table": "doctors",
+          "predicate": {
+            "all": [
+              { "column": "on_call", "op": "=", "value": true },
+              { "column": "role", "op": "=", "value": "resident" }
+            ]
+          },
+          "returnedRows": [{ "id": "bob", "on_call": true, "role": "resident" }],
+          "sourceSql": "SELECT * FROM doctors WHERE on_call = true AND role = 'resident'"
+        },
+        {
+          "type": "write",
+          "key": "doctors/alice",
+          "value": null,
+          "table": "doctors",
+          "rowId": "alice",
+          "mutation": "delete",
+          "rowBefore": { "id": "alice", "on_call": true, "role": "attending" }
+        }
+      ]
+    }
+  ]
+}

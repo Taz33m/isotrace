@@ -89,6 +89,29 @@
             "$ref": "#/$defs/jsonValue"
           }
         },
+        "mutation": {
+          "enum": ["insert", "update", "delete"]
+        },
+        "rowBefore": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/rowEvidence"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rowAfter": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/rowEvidence"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "predicate": {
           "type": "object"
         },
@@ -141,6 +164,15 @@
                 },
                 {
                   "required": ["note"]
+                },
+                {
+                  "required": ["mutation"]
+                },
+                {
+                  "required": ["rowBefore"]
+                },
+                {
+                  "required": ["rowAfter"]
                 }
               ]
             }
@@ -158,29 +190,64 @@
           "then": {
             "required": ["key", "value"],
             "dependentRequired": {
-              "table": ["rowId", "fields"],
-              "rowId": ["table", "fields"],
-              "fields": ["table", "rowId"]
+              "table": ["rowId"],
+              "rowId": ["table"],
+              "fields": ["table", "rowId"],
+              "mutation": ["table", "rowId"],
+              "rowBefore": ["table", "rowId"],
+              "rowAfter": ["table", "rowId"]
             },
-            "not": {
-              "anyOf": [
-                {
-                  "required": ["from"]
-                },
-                {
-                  "required": ["predicate"]
-                },
-                {
-                  "required": ["returnedRows"]
-                },
-                {
-                  "required": ["sourceSql"]
-                },
-                {
-                  "required": ["note"]
+            "allOf": [
+              {
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": ["from"]
+                    },
+                    {
+                      "required": ["predicate"]
+                    },
+                    {
+                      "required": ["returnedRows"]
+                    },
+                    {
+                      "required": ["sourceSql"]
+                    },
+                    {
+                      "required": ["note"]
+                    }
+                  ]
                 }
-              ]
-            }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "mutation": {
+                      "const": "delete"
+                    }
+                  },
+                  "required": ["mutation"]
+                },
+                "then": {
+                  "required": ["rowBefore"],
+                  "not": {
+                    "anyOf": [
+                      {
+                        "required": ["fields"]
+                      },
+                      {
+                        "properties": {
+                          "rowAfter": {
+                            "$ref": "#/$defs/rowEvidence"
+                          }
+                        },
+                        "required": ["rowAfter"]
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
           }
         },
         {
@@ -215,6 +282,15 @@
                 },
                 {
                   "required": ["fields"]
+                },
+                {
+                  "required": ["mutation"]
+                },
+                {
+                  "required": ["rowBefore"]
+                },
+                {
+                  "required": ["rowAfter"]
                 }
               ]
             }
@@ -223,6 +299,22 @@
       ]
     },
     "predicateExpression": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/predicateLeaf"
+        },
+        {
+          "$ref": "#/$defs/predicateAll"
+        },
+        {
+          "$ref": "#/$defs/predicateAny"
+        },
+        {
+          "$ref": "#/$defs/predicateNot"
+        }
+      ]
+    },
+    "predicateLeaf": {
       "type": "object",
       "additionalProperties": false,
       "required": ["column", "op", "value"],
@@ -237,6 +329,50 @@
         "value": {
           "$ref": "#/$defs/jsonValue"
         }
+      }
+    },
+    "predicateAll": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["all"],
+      "properties": {
+        "all": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/predicateExpression"
+          }
+        }
+      }
+    },
+    "predicateAny": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["any"],
+      "properties": {
+        "any": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/predicateExpression"
+          }
+        }
+      }
+    },
+    "predicateNot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["not"],
+      "properties": {
+        "not": {
+          "$ref": "#/$defs/predicateExpression"
+        }
+      }
+    },
+    "rowEvidence": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/jsonValue"
       }
     },
     "predicateReadRow": {

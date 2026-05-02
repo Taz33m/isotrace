@@ -273,7 +273,7 @@ function stableTransactionIds(ids: string[]): string[] {
 
 function baseLimitations(mode: IsolationMode): string[] {
   const limitations = [
-    "Explicit read-from histories only. Predicate-read phantom-style dependencies are inferred only from modeled returned rows and relational write metadata; there is no live database adapter, general SQL parser, or range inference.",
+    "Explicit read-from histories only. Predicate-read phantom-style dependencies are inferred only from modeled returned rows and insert/update/delete row metadata; there is no live database adapter, general SQL parser, or range inference.",
   ];
   if (mode !== "strict-serializable") {
     limitations.push("Strict realtime order was not evaluated in this run.");
