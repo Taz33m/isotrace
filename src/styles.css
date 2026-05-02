@@ -375,7 +375,7 @@ h1 {
 }
 
 .edgeRow {
-  grid-template-columns: 74px 70px 70px minmax(0, 1fr);
+  grid-template-columns: 52px 74px 70px 70px minmax(0, 1fr);
 }
 
 .historyRow,
@@ -429,12 +429,27 @@ h1 {
 }
 
 .graphEdge {
+  cursor: pointer;
   fill: none;
   stroke-width: 1.7;
 }
 
 .graphEdge.cycle {
   stroke-width: 3;
+}
+
+.graphEdge.selected {
+  filter: drop-shadow(0 0 4px rgba(220, 38, 38, 0.45));
+  stroke-width: 5;
+}
+
+.graphEdge:focus {
+  outline: none;
+}
+
+.graphEdge:focus-visible {
+  filter: drop-shadow(0 0 5px rgba(37, 99, 235, 0.55));
+  stroke-width: 5;
 }
 
 .edgeLabel {
@@ -448,6 +463,11 @@ h1 {
 
 .cycleText {
   fill: #dc2626;
+}
+
+.selectedText {
+  fill: #991b1b;
+  font-size: 15px;
 }
 
 .graphNode {
@@ -516,21 +536,78 @@ h1 {
 }
 
 .cycleCard li {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
   line-height: 1.45;
   margin-top: 8px;
 }
 
+.proofEdgeButton {
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: inherit;
+  padding: 0;
+  text-align: left;
+}
+
+.proofEdgeButton code,
 .cycleCard code {
   background: #ffedd5;
   border-radius: 5px;
   color: #9a3412;
-  margin-right: 8px;
+  display: inline-block;
   padding: 2px 5px;
+}
+
+.proofEdgeButton.selected code {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.selectedEdge {
+  align-items: start;
+  background: #f8fafc;
+  border: 1px solid #e5eaf1;
+  border-radius: 8px;
+  color: #334155;
+  display: grid;
+  font-size: 0.82rem;
+  gap: 7px;
+  grid-template-columns: auto minmax(0, max-content) minmax(0, 1fr);
+  line-height: 1.4;
+  margin-top: 10px;
+  padding: 10px 12px;
+}
+
+.selectedEdge code {
+  color: #111827;
+  overflow-wrap: anywhere;
+}
+
+.selectedEdge.empty {
+  color: #64748b;
+  display: block;
 }
 
 .edgeTable {
   max-height: 330px;
   overflow: auto;
+}
+
+.edgeButton {
+  background: transparent;
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
+  text-align: left;
+  width: 100%;
+}
+
+.edgeButton:hover {
+  background: #f8fafc;
 }
 
 .edgeKind {
@@ -562,6 +639,11 @@ h1 {
 
 .cycleEdgeRow {
   background: #fff7ed;
+}
+
+.selectedEdgeRow {
+  background: #fee2e2;
+  box-shadow: inset 4px 0 0 #dc2626;
 }
 
 @media (max-width: 1100px) {
@@ -598,6 +680,10 @@ h1 {
 
   .historyRow,
   .edgeRow {
+    grid-template-columns: 1fr;
+  }
+
+  .selectedEdge {
     grid-template-columns: 1fr;
   }
 

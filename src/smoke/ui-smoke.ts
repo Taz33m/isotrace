@@ -206,6 +206,21 @@ async function verifyWorkbench(page: Page, url: string): Promise<void> {
     .filter({ hasText: "Serializable order is impossible" })
     .first()
     .waitFor({ state: "visible" });
+  const firstCycleEdge = page.locator("[data-testid^='cycle-edge-']").first();
+  await firstCycleEdge.click();
+  const selectedEdgeId = (await firstCycleEdge.getAttribute("data-testid"))?.replace("cycle-edge-", "");
+  if (!selectedEdgeId) {
+    throw new Error("UI smoke expected a selectable cycle edge");
+  }
+  await page.getByTestId("selected-edge").filter({ hasText: selectedEdgeId }).waitFor({ state: "visible" });
+  const selectedEdgeRowClass = await page.getByTestId(`edge-row-${selectedEdgeId}`).getAttribute("class");
+  if (!selectedEdgeRowClass?.includes("selectedEdgeRow")) {
+    throw new Error(`UI smoke expected edge row ${selectedEdgeId} to be selected`);
+  }
+  const selectedGraphEdgeClass = await page.getByTestId(`graph-edge-${selectedEdgeId}`).getAttribute("class");
+  if (!selectedGraphEdgeClass?.includes("selected")) {
+    throw new Error(`UI smoke expected graph edge ${selectedEdgeId} to be selected`);
+  }
 
   const validHistory = {
     name: "ui_smoke_custom",

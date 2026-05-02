@@ -24,6 +24,7 @@ export default function App() {
       ? { slug: "__custom__", title: "Custom JSON", history: customHistory }
       : selectedFixture;
   const [strictMode, setStrictMode] = useState(selected.history.mode === "strict-serializable");
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
 
   useEffect(() => {
     setStrictMode(selected.history.mode === "strict-serializable");
@@ -31,6 +32,12 @@ export default function App() {
 
   const result = useMemo(() => analyzeHistory(selected.history, { strict: strictMode }), [selected.history, strictMode]);
   const cycleEdgeIds = useMemo(() => new Set(result.cycles.flatMap((cycle) => cycle.edges.map((edge) => edge.id))), [result]);
+  const selectedEdge = useMemo(() => result.edges.find((edge) => edge.id === selectedEdgeId) ?? null, [result.edges, selectedEdgeId]);
+
+  useEffect(() => {
+    const firstCycleEdge = result.cycles[0]?.edges[0]?.id ?? null;
+    setSelectedEdgeId((current) => (current && result.edges.some((edge) => edge.id === current) ? current : firstCycleEdge));
+  }, [result]);
 
   return (
     <main className="appShell" data-testid="app-shell">
@@ -148,7 +155,14 @@ export default function App() {
 
           <Panel title="Dependency Graph" icon={<GitBranch size={18} />} className="graphPanel">
             <GraphLegend />
-            <DependencyGraph nodes={result.nodes} edges={result.edges} cycleEdgeIds={cycleEdgeIds} />
+            <DependencyGraph
+              nodes={result.nodes}
+              edges={result.edges}
+              cycleEdgeIds={cycleEdgeIds}
+              onSelectEdge={setSelectedEdgeId}
+              selectedEdgeId={selectedEdgeId}
+            />
+            <SelectedEdge edge={selectedEdge} />
           </Panel>
 
           <Panel title="Cycle Witness" icon={result.ok ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />} className="proofPanel">
@@ -159,11 +173,11 @@ export default function App() {
                 ))}
               </div>
             ) : null}
-            <CycleProof result={result} />
+            <CycleProof onSelectEdge={setSelectedEdgeId} result={result} selectedEdgeId={selectedEdgeId} />
           </Panel>
 
           <Panel title="Dependency Edges" icon={<Play size={18} />} className="edgesPanel">
-            <EdgeTable result={result} cycleEdgeIds={cycleEdgeIds} />
+            <EdgeTable cycleEdgeIds={cycleEdgeIds} onSelectEdge={setSelectedEdgeId} result={result} selectedEdgeId={selectedEdgeId} />
           </Panel>
         </section>
       </section>
@@ -252,10 +266,14 @@ function DependencyGraph({
   nodes,
   edges,
   cycleEdgeIds,
+  selectedEdgeId,
+  onSelectEdge,
 }: {
   nodes: GraphNode[];
   edges: DependencyEdge[];
   cycleEdgeIds: Set<string>;
+  selectedEdgeId: string | null;
+  onSelectEdge: (edgeId: string) => void;
 }) {
   const positions = layoutNodes(nodes);
   return (
@@ -276,16 +294,28 @@ function DependencyGraph({
         const to = positions.get(edge.to);
         if (!from || !to) return null;
         const isCycle = cycleEdgeIds.has(edge.id);
+        const isSelected = selectedEdgeId === edge.id;
         const curve = curvePath(from.x, from.y, to.x, to.y, index);
         return (
           <g key={edge.id}>
             <path
-              className={`graphEdge ${isCycle ? "cycle" : ""}`}
+              aria-label={`${edge.kind} edge ${edge.from} to ${edge.to}`}
+              className={`graphEdge ${isCycle ? "cycle" : ""} ${isSelected ? "selected" : ""}`}
+              data-testid={`graph-edge-${edge.id}`}
               d={curve.path}
               markerEnd={`url(#${isCycle ? "arrow-cycle" : `arrow-${edge.kind}`})`}
+              onClick={() => onSelectEdge(edge.id)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onSelectEdge(edge.id);
+                }
+              }}
+              role="button"
               stroke={isCycle ? "#dc2626" : edgeColors[edge.kind]}
+              tabIndex={0}
             />
-            <text className={`edgeLabel ${isCycle ? "cycleText" : ""}`} x={curve.labelX} y={curve.labelY}>
+            <text className={`edgeLabel ${isCycle ? "cycleText" : ""} ${isSelected ? "selectedText" : ""}`} x={curve.labelX} y={curve.labelY}>
               {edge.kind}
             </text>
           </g>
@@ -308,6 +338,23 @@ function DependencyGraph({
         );
       })}
     </svg>
+  );
+}
+
+function SelectedEdge({ edge }: { edge: DependencyEdge | null }) {
+  if (!edge) {
+    return (
+      <div className="selectedEdge empty" data-testid="selected-edge">
+        No edge selected
+      </div>
+    );
+  }
+  return (
+    <div className="selectedEdge" data-testid="selected-edge">
+      <span className={`edgeKind ${edge.kind}`}>{edge.kind}</span>
+      <code>{edge.id}: {edge.from} -&gt; {edge.to}</code>
+      <span>{edge.reason}</span>
+    </div>
   );
 }
 
@@ -365,7 +412,15 @@ function curvePath(x1: number, y1: number, x2: number, y2: number, index: number
   };
 }
 
-function CycleProof({ result }: { result: AnalysisResult }) {
+function CycleProof({
+  result,
+  selectedEdgeId,
+  onSelectEdge,
+}: {
+  result: AnalysisResult;
+  selectedEdgeId: string | null;
+  onSelectEdge: (edgeId: string) => void;
+}) {
   if (result.ok) {
     return (
       <div className="proofEmpty">
@@ -383,7 +438,14 @@ function CycleProof({ result }: { result: AnalysisResult }) {
           <ol>
             {cycle.edges.map((edge) => (
               <li key={edge.id}>
-                <code>{edge.from} -&gt; {edge.to}</code>
+                <button
+                  className={`proofEdgeButton ${selectedEdgeId === edge.id ? "selected" : ""}`}
+                  data-testid={`cycle-edge-${edge.id}`}
+                  onClick={() => onSelectEdge(edge.id)}
+                  type="button"
+                >
+                  <code>{edge.id}: {edge.from} -&gt; {edge.to}</code>
+                </button>
                 <span>{edge.reason}</span>
               </li>
             ))}
@@ -394,22 +456,41 @@ function CycleProof({ result }: { result: AnalysisResult }) {
   );
 }
 
-function EdgeTable({ result, cycleEdgeIds }: { result: AnalysisResult; cycleEdgeIds: Set<string> }) {
+function EdgeTable({
+  result,
+  cycleEdgeIds,
+  selectedEdgeId,
+  onSelectEdge,
+}: {
+  result: AnalysisResult;
+  cycleEdgeIds: Set<string>;
+  selectedEdgeId: string | null;
+  onSelectEdge: (edgeId: string) => void;
+}) {
   return (
     <div className="edgeTable" role="table" aria-label="Dependency edges">
       <div className="edgeRow header" role="row">
+        <span>ID</span>
         <span>Kind</span>
         <span>From</span>
         <span>To</span>
         <span>Reason</span>
       </div>
       {result.edges.map((edge) => (
-        <div className={`edgeRow ${cycleEdgeIds.has(edge.id) ? "cycleEdgeRow" : ""}`} key={edge.id} role="row">
+        <button
+          className={`edgeRow edgeButton ${cycleEdgeIds.has(edge.id) ? "cycleEdgeRow" : ""} ${selectedEdgeId === edge.id ? "selectedEdgeRow" : ""}`}
+          data-testid={`edge-row-${edge.id}`}
+          key={edge.id}
+          onClick={() => onSelectEdge(edge.id)}
+          role="row"
+          type="button"
+        >
+          <span>{edge.id}</span>
           <span className={`edgeKind ${edge.kind}`}>{edge.kind}</span>
           <span>{edge.from}</span>
           <span>{edge.to}</span>
           <span>{edgeKindLabel(edge.kind)}: {edge.reason}</span>
-        </div>
+        </button>
       ))}
     </div>
   );
