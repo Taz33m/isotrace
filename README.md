@@ -9,7 +9,7 @@ IsoTrace is a local transaction-history analyzer for explicit key-value historie
 
 Transaction isolation failures are hard to inspect because the evidence is spread across reads, writes, version order, and realtime order. A history that looks harmless row-by-row can be impossible to serialize once read-write anti-dependencies are connected. IsoTrace focuses on that hard middle layer: turn an explicit history into graph edges that can be tested, rendered, and audited.
 
-This is inspired by dependency-graph approaches used in database consistency work such as Adya-style serialization graphs and Jepsen/Elle-style anomaly checking. IsoTrace is much smaller: it does not run a database workload and does not infer predicate reads. It analyzes local JSON histories where each read already names the transaction version it observed.
+This is inspired by dependency-graph approaches used in database consistency work such as Adya-style serialization graphs and Jepsen/Elle-style anomaly checking. IsoTrace is much smaller: it does not run a database workload and does not certify database behavior. It analyzes local JSON histories where each read already names the transaction version it observed, or imports a constrained SQL trace that carries the same explicit provenance.
 
 ## Why This Is Hard
 
@@ -30,6 +30,7 @@ IsoTrace also emits a conservative semantic verdict: serializable pass/fail, str
 npm ci
 npm run check
 npm run demo
+npm run demo:sql
 npm run smoke:ui
 ```
 
@@ -51,6 +52,14 @@ npm run demo:strict
 
 That fixture is serializable if realtime order is ignored, but strict mode adds a realtime edge and exposes the stale read.
 
+Run the constrained SQL trace demo:
+
+```bash
+npm run demo:sql
+```
+
+That trace parses a small subset of SQL event syntax, materializes returned `SELECT` rows into explicit read-from operations, and finds the same write-skew shape. It does not connect to a database or infer phantoms from non-returned rows.
+
 Open the workbench:
 
 ```bash
@@ -67,6 +76,7 @@ The workbench also accepts pasted history JSON in the `Custom History` editor. P
 - `src/core/analyzer.ts`: dependency graph construction and anomaly classification.
 - `src/core/graph.ts`: Tarjan strongly connected components and cycle extraction.
 - `src/core/explain.ts`: CLI proof formatting.
+- `src/sql/trace.ts`: constrained SQL trace importer for annotated local traces.
 - `src/cli.ts`: local JSON analyzer.
 - `src/bench/bench.ts`: deterministic synthetic-history benchmark smoke.
 - `src/App.tsx`: browser workbench over the same analyzer.
@@ -101,6 +111,19 @@ Each read must name the transaction version it observed with `from`. The referen
 
 Version order is explicit rather than inferred from read values. `T0` is reserved for an initial seed transaction when present; its optional `commit` is allowed but does not force the rest of the fixture into timestamped ordering. For committed transactions other than `T0`, either every transaction supplies a numeric `commit` and IsoTrace orders versions by commit time, or every transaction omits `commit` and IsoTrace uses fixture order. Mixed explicit/missing commits among non-initial committed transactions are rejected because the version order would be ambiguous.
 
+## SQL Trace Import
+
+`--sql-trace` accepts a deliberately small local trace syntax:
+
+```sql
+BEGIN T1 AT 1 PROCESS worker-a
+T1: SELECT id, on_call FROM doctors WHERE id = 'bob' AND on_call = true -> [{"id":"bob","on_call":true,"_from":"T0"}]
+T1: UPDATE doctors SET on_call = false WHERE id = 'alice'
+COMMIT T1 AT 2
+```
+
+Supported statements are `BEGIN`, `COMMIT`, `ROLLBACK`, `INSERT INTO ... VALUES ...`, single-column `UPDATE ... SET ... WHERE id = ...`, and `SELECT cols FROM table WHERE predicate -> JSON rows`. Each returned `SELECT` row must include `_from` provenance and `id` or `_id`. IsoTrace records the predicate on generated read operations, but only returned rows become dependencies. This is predicate-read evidence for annotated traces, not general SQL parsing or phantom detection.
+
 ## Commands
 
 ```bash
@@ -110,6 +133,7 @@ npm test
 npm run build
 npm run demo
 npm run demo:strict
+npm run demo:sql
 npm run fixtures
 npm run bench
 npm run bench -- --json
@@ -117,6 +141,7 @@ npm run smoke:ui
 npm run artifacts:check
 npm run analyze -- --fixtures --json
 npm run analyze -- examples/valid_history.json --validate
+npm run analyze -- examples/write_skew_sql_trace.sql --sql-trace
 npm run analyze -- fixtures/write_skew_doctors.json --json
 ```
 
@@ -146,8 +171,8 @@ The benchmark uses generated serial histories to smoke-test graph construction a
 ## Limitations
 
 - No live database adapter.
-- No SQL parser.
-- No predicate-read inference.
+- No general SQL parser. The SQL importer is constrained trace syntax, not database SQL coverage.
+- No phantom or non-returned range-read inference. Predicate evidence is attached only to returned rows with explicit `_from` provenance.
 - No claim of full Elle compatibility.
 - No certification of any database system.
 - Equal non-initial commit timestamps are rejected because the v1 model needs unambiguous version order.

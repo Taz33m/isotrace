@@ -2,11 +2,12 @@ import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { analyzeHistory } from "../core/analyzer";
-import { parseHistoryJson, validateAnalysisReportArtifact, validateBenchmarkReportArtifact } from "../core/artifacts";
+import { parseHistoryJson, validateAnalysisReportArtifact, validateBenchmarkReportArtifact, validateHistoryArtifact } from "../core/artifacts";
 import { makeAnalysisReport } from "../core/report";
 import type { AnalysisResult } from "../core/types";
 import { HistoryValidationError } from "../core/validate";
 import { makeFixtureCatalog, readFixtureManifest, type FixtureContract, type FixtureExpectation } from "../fixtures/manifest";
+import { parseSqlTrace } from "../sql/trace";
 
 interface CheckResult {
   label: string;
@@ -57,11 +58,16 @@ function validateFixtureContracts(): CheckResult {
 
 function validateExamples(): CheckResult {
   parseHistoryJson(readFileSync("examples/valid_history.json", "utf8"));
+  const { history: sqlHistory } = validateHistoryArtifact(parseSqlTrace(readFileSync("examples/write_skew_sql_trace.sql", "utf8"), "write_skew_sql_trace.sql"));
+  const sqlResult = analyzeHistory(sqlHistory);
+  if (sqlResult.verdict.anomaly.label !== "write-skew") {
+    throw new Error(`examples/write_skew_sql_trace.sql expected write-skew, got ${sqlResult.verdict.anomaly.label}`);
+  }
   expectInvalidHistoryExample(
     "examples/invalid_history_missing_from.json",
     "history schema violation: /transactions/1/ops/0 requires property from",
   );
-  return { label: "examples checked", count: 2 };
+  return { label: "examples checked", count: 3 };
 }
 
 function validateFixtureReports(): CheckResult {

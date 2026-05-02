@@ -75,6 +75,9 @@
         "from": {
           "type": "string",
           "minLength": 1
+        },
+        "predicate": {
+          "$ref": "#/$defs/predicateRead"
         }
       },
       "allOf": [
@@ -102,11 +105,40 @@
           },
           "then": {
             "not": {
-              "required": ["from"]
+              "anyOf": [
+                {
+                  "required": ["from"]
+                },
+                {
+                  "required": ["predicate"]
+                }
+              ]
             }
           }
         }
       ]
+    },
+    "predicateRead": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["table", "where", "rowId", "sourceSql"],
+      "properties": {
+        "table": {
+          "type": "string",
+          "minLength": 1
+        },
+        "where": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rowId": {
+          "$ref": "#/$defs/jsonValue"
+        },
+        "sourceSql": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "jsonValue": {
       "oneOf": [

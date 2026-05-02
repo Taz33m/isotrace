@@ -1,13 +1,14 @@
 import { readFileSync, statSync } from "node:fs";
-import { resolve } from "node:path";
+import { basename, resolve } from "node:path";
 import { analyzeHistory } from "./core/analyzer";
-import { parseHistoryJson } from "./core/artifacts";
+import { parseHistoryJson, validateHistoryArtifact } from "./core/artifacts";
 import { explainResult } from "./core/explain";
 import { makeAnalysisReport } from "./core/report";
 import type { History } from "./core/types";
 import type { NormalizedHistory } from "./core/validate";
 import { HistoryValidationError } from "./core/validate";
 import { makeFixtureCatalog } from "./fixtures/manifest";
+import { parseSqlTrace } from "./sql/trace";
 
 const MAX_HISTORY_BYTES = 512 * 1024;
 
@@ -18,6 +19,7 @@ interface CliArgs {
   json: boolean;
   failOnViolation: boolean;
   validate: boolean;
+  sqlTrace: boolean;
 }
 
 function parseArgs(argv: string[]): CliArgs {
@@ -26,7 +28,7 @@ function parseArgs(argv: string[]): CliArgs {
     printHelp();
     process.exit(0);
   }
-  const allowedFlags = new Set(["--strict", "--json", "--fail-on-violation", "--validate", "--fixtures"]);
+  const allowedFlags = new Set(["--strict", "--json", "--fail-on-violation", "--validate", "--fixtures", "--sql-trace"]);
   const positional: string[] = [];
   for (const arg of args) {
     if (arg.startsWith("-")) {
@@ -52,6 +54,7 @@ function parseArgs(argv: string[]): CliArgs {
       json: args.includes("--json"),
       failOnViolation: false,
       validate: false,
+      sqlTrace: false,
     };
   }
 
@@ -65,6 +68,7 @@ function parseArgs(argv: string[]): CliArgs {
     json: args.includes("--json"),
     failOnViolation: args.includes("--fail-on-violation"),
     validate: args.includes("--validate"),
+    sqlTrace: args.includes("--sql-trace"),
   };
 }
 
@@ -73,6 +77,7 @@ function printHelp(): void {
 
 Usage:
   npm run analyze -- <history.json> [--strict] [--json] [--fail-on-violation] [--validate]
+  npm run analyze -- <trace.sql> --sql-trace [--strict] [--json] [--fail-on-violation] [--validate]
   npm run analyze -- --fixtures [--json]
 
 Examples:
@@ -81,10 +86,12 @@ Examples:
   npm run analyze -- --fixtures
   npm run analyze -- examples/valid_history.json --validate
   npm run analyze -- fixtures/write_skew_doctors.json --json
+  npm run analyze -- examples/write_skew_sql_trace.sql --sql-trace
 
 Notes:
   --fixtures lists the checked-in demo histories, expected verdict contracts, and reproduction commands.
   --validate checks schema shape and IsoTrace semantic constraints without running analysis.
+  --sql-trace imports constrained SQL trace syntax before analysis.
   --json prints the full input history in the analysis result.
 `);
 }
@@ -107,7 +114,10 @@ function main(): void {
     }
 
     const inputBytes = readFileSync(filePath);
-    const { history, normalized } = parseHistoryJson(inputBytes.toString("utf8"), { strict: args.strict });
+    const inputText = inputBytes.toString("utf8");
+    const { history, normalized } = args.sqlTrace
+      ? validateHistoryArtifact(parseSqlTrace(inputText, basename(file)), { strict: args.strict })
+      : parseHistoryJson(inputText, { strict: args.strict });
     if (args.validate) {
       printValidationResult(history, normalized, args.json);
       return;

@@ -9,12 +9,20 @@ export interface ReadOp {
   key: string;
   value: JsonValue;
   from: string;
+  predicate?: PredicateReadEvidence;
 }
 
 export interface WriteOp {
   type: "write";
   key: string;
   value: JsonValue;
+}
+
+export interface PredicateReadEvidence {
+  table: string;
+  where: string;
+  rowId: JsonValue;
+  sourceSql: string;
 }
 
 export type TxOp = ReadOp | WriteOp;

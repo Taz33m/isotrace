@@ -239,7 +239,9 @@ function stableTransactionIds(ids: string[]): string[] {
 }
 
 function baseLimitations(mode: IsolationMode): string[] {
-  const limitations = ["Explicit read-from histories only; no SQL parsing, live database adapter, or predicate-read inference."];
+  const limitations = [
+    "Explicit read-from histories only. Constrained SQL trace import can materialize returned rows, but there is no live database adapter, general SQL parser, or phantom/range inference.",
+  ];
   if (mode !== "strict-serializable") {
     limitations.push("Strict realtime order was not evaluated in this run.");
   }
