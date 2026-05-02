@@ -218,6 +218,8 @@ async function verifyWorkbench(page: Page, url: string): Promise<void> {
   await page.getByTestId("verdict-panel").filter({ hasText: "Write skew" }).waitFor({ state: "visible" });
   await page.getByTestId("verdict-panel").filter({ hasText: "write-skew" }).waitFor({ state: "visible" });
   await page.getByTestId("verdict-panel").filter({ hasText: "T1, T2" }).waitFor({ state: "visible" });
+  await page.getByTestId("verdict-panel").filter({ hasText: "T1 read doctor/bob_on_call before T2's later write" }).waitFor({ state: "visible" });
+  await page.getByTestId("verdict-panel").filter({ hasText: "T2 wrote doctor/bob_on_call=false" }).waitFor({ state: "visible" });
   const firstVerdictEdge = page.locator("[data-testid^='verdict-edge-']").first();
   await firstVerdictEdge.waitFor({ state: "visible" });
   await firstVerdictEdge.click();

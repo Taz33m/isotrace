@@ -443,21 +443,21 @@ h1 {
 }
 
 .proofEdgeList {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: 8px;
 }
 
 .proofEdgeList button {
-  align-items: center;
+  align-items: start;
   background: #fff7ed;
   border: 1px solid #fed7aa;
   border-radius: 7px;
   color: #9a3412;
-  display: inline-flex;
-  gap: 6px;
-  min-height: 32px;
-  padding: 5px 8px;
+  display: grid;
+  gap: 7px;
+  min-height: 44px;
+  padding: 8px 10px;
+  text-align: left;
 }
 
 .proofEdgeList button.selected {
@@ -471,10 +471,28 @@ h1 {
   font-weight: 900;
 }
 
-.proofEdgeList span {
+.proofEdgeHead {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+}
+
+.proofEdgeHead span {
   font-size: 0.72rem;
   font-weight: 900;
   text-transform: uppercase;
+}
+
+.proofEdgeFacts {
+  color: #7c2d12;
+  display: grid;
+  font-size: 0.74rem;
+  gap: 2px;
+  line-height: 1.35;
+}
+
+.proofEdgeList button.selected .proofEdgeFacts {
+  color: #ffffff;
 }
 
 .diagnosisLimitations {

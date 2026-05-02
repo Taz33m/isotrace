@@ -268,18 +268,24 @@ function VerdictPanel({
         <span>Inspect first</span>
         <strong>{verdict.inspectFirst}</strong>
       </div>
-      {verdict.evidence.edgeIds.length > 0 ? (
+      {verdict.evidence.proofEdges.length > 0 ? (
         <div className="proofEdgeList" aria-label="Verdict proof edge sequence">
-          {verdict.evidence.edgeIds.map((edgeId, index) => (
+          {verdict.evidence.proofEdges.map((proofEdge) => (
             <button
-              className={selectedEdgeId === edgeId ? "selected" : ""}
-              data-testid={`verdict-edge-${edgeId}`}
-              key={edgeId}
-              onClick={() => onSelectEdge(edgeId)}
+              className={selectedEdgeId === proofEdge.edgeId ? "selected" : ""}
+              data-testid={`verdict-edge-${proofEdge.edgeId}`}
+              key={proofEdge.edgeId}
+              onClick={() => onSelectEdge(proofEdge.edgeId)}
               type="button"
             >
-              <code>{edgeId}</code>
-              <span>{verdict.evidence.edgeKinds[index]}</span>
+              <span className="proofEdgeHead">
+                <code>{proofEdge.edgeId}</code>
+                <span>{proofEdge.edgeKind}</span>
+              </span>
+              <span className="proofEdgeFacts">
+                <span>{proofEdge.sourceFact}</span>
+                <span>{proofEdge.targetFact}</span>
+              </span>
             </button>
           ))}
         </div>
