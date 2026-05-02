@@ -59,6 +59,7 @@ export function normalizeHistory(history: History): NormalizedHistory {
     rejectRepeatedWrites(tx);
   });
 
+  validateCommittedOrdering(history.transactions);
   const committed = history.transactions
     .filter((tx) => (tx.status ?? "committed") === "committed")
     .slice()
@@ -117,6 +118,17 @@ function validateOp(txId: string, op: ReadOp | WriteOp, opIndex: number): void {
 function comparableCommit(tx: Transaction, transactions: Transaction[]): number {
   if (typeof tx.commit === "number") return tx.commit;
   return transactions.indexOf(tx);
+}
+
+function validateCommittedOrdering(transactions: Transaction[]): void {
+  const committed = transactions.filter((tx) => (tx.status ?? "committed") === "committed");
+  const withCommit = committed.filter((tx) => tx.commit !== undefined);
+  if (withCommit.length > 0 && withCommit.length < committed.length) {
+    const missing = committed.filter((tx) => tx.commit === undefined).map((tx) => tx.id).join(", ");
+    throw new HistoryValidationError(
+      `committed transactions must either all include commit timestamps or all omit them; missing commit on ${missing}`,
+    );
+  }
 }
 
 function validateTime(tx: Transaction): void {

@@ -124,6 +124,19 @@ describe("IsoTrace analyzer", () => {
     expect(() => analyzeHistory(ambiguousCommit)).toThrow(/share commit time/);
   });
 
+  it("rejects mixed committed histories where some transactions omit commit timestamps", () => {
+    const mixedCommitOrder: History = {
+      name: "mixed-commit-order",
+      description: "partial commit timestamps make version order depend on array position",
+      transactions: [
+        { id: "T0", commit: 0, ops: [{ type: "write", key: "x", value: 0 }] },
+        { id: "T1", ops: [{ type: "write", key: "x", value: 1 }] },
+        { id: "T2", commit: 1, ops: [{ type: "write", key: "x", value: 2 }] },
+      ],
+    };
+    expect(() => analyzeHistory(mixedCommitOrder)).toThrow(/all include commit timestamps or all omit them/);
+  });
+
   it("rejects strict analysis without complete timestamps", () => {
     const missingTimestamp: History = {
       name: "missing-strict-time",

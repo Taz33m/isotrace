@@ -123,7 +123,7 @@ The benchmark uses generated serial histories to smoke-test graph construction a
 - No predicate-read inference.
 - No claim of full Elle compatibility.
 - No certification of any database system.
-- Version order is commit-time order when timestamps exist; equal committed timestamps are rejected because the v1 model needs unambiguous order.
+- Version order is commit-time order when every committed transaction has a `commit`; if all committed transactions omit `commit`, fixture order is used. Mixed timestamped/untimestamped committed histories and equal committed timestamps are rejected because the v1 model needs unambiguous order.
 - Strict mode requires numeric `begin` and `commit` on non-initial committed transactions.
 - Fixtures are synthetic, deterministic examples built to exercise the analyzer.
 
