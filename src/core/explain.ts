@@ -1,6 +1,6 @@
 import type { AnalysisResult, CycleWitness, DependencyEdge } from "./types";
 import { edgeKindLabel } from "./analyzer";
-import { plural } from "./format";
+import { formatJsonValue, plural } from "./format";
 import { formatEdgeFacts } from "./proofFacts";
 
 export { formatEdgeFacts } from "./proofFacts";
@@ -67,6 +67,10 @@ export function formatCycle(cycle: CycleWitness): string {
   cycle.edges.forEach((edge, index) => {
     lines.push(`  ${index + 1}. ${formatEdge(edge)}`);
     lines.push(`     facts: ${formatEdgeFacts(edge)}`);
+    if (edge.predicateProof) {
+      lines.push(`     before: source=${edge.predicateProof.before.source}; matches=${edge.predicateProof.before.matches}; row=${formatJsonValue(edge.predicateProof.before.row)}`);
+      lines.push(`     after: source=${edge.predicateProof.after.source}; matches=${edge.predicateProof.after.matches}; row=${formatJsonValue(edge.predicateProof.after.row)}`);
+    }
   });
   return lines.join("\n");
 }

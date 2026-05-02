@@ -125,8 +125,26 @@ describe("explicit predicate reads", () => {
         rowId: "bob",
         predicate: { column: "on_call", op: "=", value: true },
         predicateChange: { beforeMatches: false, afterMatches: true },
+        predicateProof: {
+          mutation: "insert",
+          before: { matches: false, row: null, source: "none" },
+          after: { matches: true, row: { id: "bob", on_call: true }, source: "fields" },
+        },
       },
     ]);
+  });
+
+  it("attaches update proof rows to fixture prw edges", () => {
+    const result = analyzeHistory(phantomPredicateCycle as History);
+    const edge = result.edges.find((candidate) => candidate.kind === "prw" && candidate.rowId === "bob");
+    expect(edge?.predicateProof).toMatchObject({
+      table: "doctors",
+      rowId: "bob",
+      mutation: "update",
+      before: { matches: true, row: { id: "bob", on_call: false }, source: "returnedRows" },
+      after: { matches: false, row: { id: "bob", on_call: true }, source: "fields" },
+    });
+    expect(result.verdict.evidence.proofEdges.find((proofEdge) => proofEdge.edgeId === edge?.id)?.predicateProof).toEqual(edge?.predicateProof);
   });
 
   it("does not create prw when row membership does not change", () => {
@@ -152,6 +170,7 @@ describe("explicit predicate reads", () => {
       }),
     );
     expect(result.edges.some((edge) => edge.kind === "prw")).toBe(false);
+    expect(result.verdict.evidence.proofEdges.some((proofEdge) => proofEdge.predicateProof)).toBe(false);
     expect(result.validationNotes).toContain('doctors/bob/on_call row evidence is missing columns for predicate specialty = "cardiology"; no prw edge inferred for doctors/"bob".');
   });
 
@@ -246,8 +265,26 @@ describe("explicit predicate reads", () => {
     expect(result.verdict.anomaly).toEqual({ label: "predicate-dependency-cycle", title: "Explicit predicate phantom" });
     expect(result.verdict.evidence.edgeKinds).toEqual(["prw", "prw"]);
     expect(result.edges.filter((edge) => edge.kind === "prw")).toMatchObject([
-      { from: "T1", to: "T2", mutation: "delete", predicateChange: { beforeMatches: true, afterMatches: false, mutation: "delete" } },
-      { from: "T2", to: "T1", mutation: "delete", predicateChange: { beforeMatches: true, afterMatches: false, mutation: "delete" } },
+      {
+        from: "T1",
+        to: "T2",
+        mutation: "delete",
+        predicateChange: { beforeMatches: true, afterMatches: false, mutation: "delete" },
+        predicateProof: {
+          before: { matches: true, row: { id: "alice", on_call: true, role: "attending" }, source: "returnedRows" },
+          after: { matches: false, row: null, source: "delete" },
+        },
+      },
+      {
+        from: "T2",
+        to: "T1",
+        mutation: "delete",
+        predicateChange: { beforeMatches: true, afterMatches: false, mutation: "delete" },
+        predicateProof: {
+          before: { matches: true, row: { id: "bob", on_call: true, role: "resident" }, source: "returnedRows" },
+          after: { matches: false, row: null, source: "delete" },
+        },
+      },
     ]);
   });
 
@@ -263,6 +300,8 @@ describe("explicit predicate reads", () => {
     });
     const validated = validateAnalysisReportArtifact(report);
     expect(validated.result.verdict.evidence.proofEdges[0].summary).toContain("predicate-read/write anti-dependency");
+    expect(validated.result.verdict.evidence.proofEdges[0].predicateProof?.before.source).toBe("returnedRows");
+    expect(validated.result.verdict.evidence.proofEdges[0].predicateProof?.after.source).toBe("fields");
 
     const compositeReport = makeAnalysisReport({
       argv: ["fixtures/composite_predicate_delete_cycle.json", "--json"],
@@ -272,7 +311,13 @@ describe("explicit predicate reads", () => {
       inputBytes: readFileSync("fixtures/composite_predicate_delete_cycle.json"),
       result: analyzeHistory(compositePredicateDeleteCycle as History),
     });
-    expect(validateAnalysisReportArtifact(compositeReport).result.verdict.evidence.proofEdges[0].summary).toContain("delete changed row");
+    const validatedComposite = validateAnalysisReportArtifact(compositeReport);
+    expect(validatedComposite.result.verdict.evidence.proofEdges[0].summary).toContain("delete changed row");
+    expect(validatedComposite.result.verdict.evidence.proofEdges[0].predicateProof?.after).toEqual({
+      matches: false,
+      row: null,
+      source: "delete",
+    });
   });
 
   it("prints predicate anomaly proof details in CLI output", () => {
@@ -284,6 +329,8 @@ describe("explicit predicate reads", () => {
     expect(output).toContain("Proof edges: e3 -> e4 (prw -> prw)");
     expect(output).toContain('predicate-read doctors where on_call = false returned row "bob"');
     expect(output).toContain("predicate-read/write anti-dependency");
+    expect(output).toContain('before: source=returnedRows; matches=true; row={"id":"bob","on_call":false}');
+    expect(output).toContain('after: source=fields; matches=false; row={"on_call":true,"id":"bob"}');
 
     const composite = execFileSync(process.execPath, ["--import", "tsx", "src/cli.ts", "fixtures/composite_predicate_delete_cycle.json"], {
       cwd: process.cwd(),
@@ -293,6 +340,7 @@ describe("explicit predicate reads", () => {
     expect(composite).toContain("Proof edges: e3 -> e4 (prw -> prw)");
     expect(composite).toContain('where (on_call = true AND role = "attending") returned row "alice"');
     expect(composite).toContain('delete changed row "alice"');
+    expect(composite).toContain('after: source=delete; matches=false; row=null');
   });
 });
 

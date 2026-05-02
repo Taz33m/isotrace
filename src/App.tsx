@@ -4,7 +4,7 @@ import { analyzeHistory, edgeKindLabel } from "./core/analyzer";
 import { parseHistoryJson } from "./core/artifacts";
 import { formatJsonValue } from "./core/format";
 import { formatPredicate } from "./core/predicate";
-import type { AnalysisResult, DependencyEdge, EdgeKind, GraphNode, History, IsolationVerdict, TxOp } from "./core/types";
+import type { AnalysisResult, DependencyEdge, EdgeKind, GraphNode, History, IsolationVerdict, PredicateProof, TxOp } from "./core/types";
 import { fixtureCatalog } from "./fixtures";
 
 const edgeColors: Record<EdgeKind, string> = {
@@ -293,6 +293,11 @@ function VerdictPanel({
               <span className="proofEdgeFacts">
                 <span>{proofEdge.sourceFact}</span>
                 <span>{proofEdge.targetFact}</span>
+                {proofEdge.predicateProof ? (
+                  <span>
+                    {proofEdge.predicateProof.mutation}: before {formatMatch(proofEdge.predicateProof.before.matches)} / after {formatMatch(proofEdge.predicateProof.after.matches)}
+                  </span>
+                ) : null}
               </span>
             </button>
           ))}
@@ -514,8 +519,30 @@ function SelectedEdge({ edge }: { edge: DependencyEdge | null }) {
       <span className={`edgeKind ${edge.kind}`}>{edge.kind}</span>
       <code>{edge.id}: {edge.from} -&gt; {edge.to}</code>
       <span>{edge.reason}</span>
+      {edge.predicateProof ? <PredicateProofBlock proof={edge.predicateProof} /> : null}
     </div>
   );
+}
+
+function PredicateProofBlock({ proof }: { proof: PredicateProof }) {
+  return (
+    <div className="predicateProofBlock">
+      <strong>Predicate row evidence</strong>
+      <span>Predicate: <code>{formatPredicate(proof.predicate)}</code></span>
+      <span>Mutation: <code>{proof.mutation}</code></span>
+      <span>Before: source={proof.before.source}; matches={String(proof.before.matches)}; row={formatProofRow(proof.before.row)}</span>
+      <span>After: source={proof.after.source}; matches={String(proof.after.matches)}; row={formatProofRow(proof.after.row)}</span>
+      <small>{proof.explanation}</small>
+    </div>
+  );
+}
+
+function formatProofRow(row: PredicateProof["before"]["row"]): string {
+  return row === null ? "null" : formatJsonValue(row);
+}
+
+function formatMatch(matches: boolean): string {
+  return matches ? "match" : "no match";
 }
 
 function GraphLegend() {
@@ -621,6 +648,11 @@ function CycleProof({
                   <code>{edge.id}: {edge.from} -&gt; {edge.to}</code>
                 </button>
                 <span>{edge.reason}</span>
+                {edge.predicateProof ? (
+                  <small className="cycleProofMeta">
+                    {edge.predicateProof.mutation}: before {formatMatch(edge.predicateProof.before.matches)} / after {formatMatch(edge.predicateProof.after.matches)}
+                  </small>
+                ) : null}
               </li>
             ))}
           </ol>

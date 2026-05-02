@@ -8,7 +8,10 @@ import type {
   IsolationMode,
   JsonValue,
   OrderWitness,
+  PredicateProof,
+  PredicateProofRowEvidence,
   PredicateReadOp,
+  PredicateReadRow,
   ReadOp,
   Transaction,
   WriteMutation,
@@ -256,6 +259,7 @@ function addPredicateReadDependencies(
           if (hasEquivalentPointRw(currentEdges, reader.id, writer.id, write)) continue;
           const rowKey = relationalRowKey(write.table, write.rowId);
           const mutation = edgeMutation(write, beforeMatches, afterMatches);
+          const predicateProof = buildPredicateProof(write, op, beforeMatches, afterMatches, mutation);
           add({
             from: reader.id,
             to: writer.id,
@@ -265,6 +269,7 @@ function addPredicateReadDependencies(
             rowId: write.rowId,
             predicate: op.predicate,
             predicateChange: { beforeMatches, afterMatches, mutation },
+            predicateProof,
             mutation,
             reason: `${reader.id} predicate-read ${write.table} where ${formatPredicate(op.predicate)} ${beforeMatches ? "returned" : "did not return"} row ${formatJsonValue(write.rowId)}, before ${writer.id}'s ${mutation} changed membership to ${afterMatches ? "matching" : "not matching"}.`,
           });
@@ -280,7 +285,11 @@ function couldAffectPredicateRead(reader: Transaction, writer: Transaction): boo
 }
 
 function returnedRowsContain(op: PredicateReadOp, rowId: WriteOp["rowId"]): boolean {
-  return op.returnedRows.some((row) => predicateRowIdentity(row.id) === predicateRowIdentity(rowId ?? null));
+  return returnedRowFor(op, rowId) !== null;
+}
+
+function returnedRowFor(op: PredicateReadOp, rowId: WriteOp["rowId"]): PredicateReadRow | null {
+  return op.returnedRows.find((row) => predicateRowIdentity(row.id) === predicateRowIdentity(rowId ?? null)) ?? null;
 }
 
 function hasEquivalentPointRw(edges: DependencyEdge[], readerId: string, writerId: string, write: WriteOp): boolean {
@@ -322,6 +331,63 @@ function rowAfterEvidence(write: WriteOp & { rowId: JsonValue }): Record<string,
     return { ...write.fields, id: write.rowId };
   }
   return null;
+}
+
+function rowBeforeEvidence(write: WriteOp & { rowId: JsonValue }): Record<string, JsonValue> | null {
+  if (write.rowBefore && typeof write.rowBefore === "object" && !Array.isArray(write.rowBefore)) {
+    return { ...write.rowBefore, id: write.rowId };
+  }
+  return null;
+}
+
+function buildPredicateProof(
+  write: WriteOp & { table: string; rowId: JsonValue },
+  read: PredicateReadOp,
+  beforeMatches: boolean,
+  afterMatches: boolean,
+  mutation: WriteMutation,
+): PredicateProof {
+  return {
+    table: write.table,
+    rowId: write.rowId,
+    predicate: read.predicate,
+    mutation,
+    before: beforeProofEvidence(write, read, beforeMatches),
+    after: afterProofEvidence(write, afterMatches),
+    explanation: `${mutation} changed ${write.table}/${formatJsonValue(write.rowId)} from ${beforeMatches ? "matching" : "not matching"} to ${afterMatches ? "matching" : "not matching"} for ${formatPredicate(read.predicate)}.`,
+  };
+}
+
+function beforeProofEvidence(
+  write: WriteOp & { rowId: JsonValue },
+  read: PredicateReadOp,
+  beforeMatches: boolean,
+): PredicateProofRowEvidence {
+  const returnedRow = returnedRowFor(read, write.rowId);
+  if (returnedRow) {
+    return { matches: beforeMatches, row: { ...returnedRow }, source: "returnedRows" };
+  }
+  const rowBefore = rowBeforeEvidence(write);
+  if (rowBefore) {
+    const beforeTruth = evaluatePredicateTruth(rowBefore, read.predicate);
+    if (beforeTruth !== "unknown" && beforeTruth === beforeMatches) {
+      return { matches: beforeMatches, row: rowBefore, source: "rowBefore" };
+    }
+  }
+  return { matches: beforeMatches, row: null, source: "none" };
+}
+
+function afterProofEvidence(write: WriteOp & { rowId: JsonValue }, afterMatches: boolean): PredicateProofRowEvidence {
+  if (write.mutation === "delete") {
+    return { matches: afterMatches, row: null, source: "delete" };
+  }
+  if (write.rowAfter && typeof write.rowAfter === "object" && !Array.isArray(write.rowAfter)) {
+    return { matches: afterMatches, row: { ...write.rowAfter, id: write.rowId }, source: "rowAfter" };
+  }
+  if (write.fields && typeof write.fields === "object" && !Array.isArray(write.fields)) {
+    return { matches: afterMatches, row: { ...write.fields, id: write.rowId }, source: "fields" };
+  }
+  return { matches: afterMatches, row: null, source: "none" };
 }
 
 function edgeMutation(

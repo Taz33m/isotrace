@@ -323,6 +323,9 @@ async function verifyWorkbench(page: Page, url: string): Promise<void> {
     throw new Error("UI smoke expected a selectable composite predicate proof edge");
   }
   await page.getByTestId("selected-edge").filter({ hasText: selectedCompositeEdgeId }).filter({ hasText: "prw" }).filter({ hasText: "delete" }).waitFor({ state: "visible" });
+  await page.getByTestId("selected-edge").filter({ hasText: "Predicate row evidence" }).waitFor({ state: "visible" });
+  await page.getByTestId("selected-edge").filter({ hasText: "Before: source=returnedRows; matches=true" }).waitFor({ state: "visible" });
+  await page.getByTestId("selected-edge").filter({ hasText: "After: source=delete; matches=false; row=null" }).waitFor({ state: "visible" });
 
   const validHistory = {
     name: "ui_smoke_custom",

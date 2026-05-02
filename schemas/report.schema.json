@@ -360,6 +360,9 @@
         "summary": {
           "type": "string",
           "minLength": 1
+        },
+        "predicateProof": {
+          "$ref": "#/$defs/predicateProof"
         }
       }
     },
@@ -427,6 +430,9 @@
         },
         "predicateChange": {
           "$ref": "#/$defs/predicateMembershipChange"
+        },
+        "predicateProof": {
+          "$ref": "#/$defs/predicateProof"
         },
         "mutation": {
           "enum": ["insert", "update", "delete"]
@@ -580,6 +586,62 @@
         },
         "mutation": {
           "enum": ["insert", "update", "delete"]
+        }
+      }
+    },
+    "predicateProof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["table", "rowId", "predicate", "mutation", "before", "after", "explanation"],
+      "properties": {
+        "table": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rowId": {
+          "$ref": "#/$defs/jsonValue"
+        },
+        "predicate": {
+          "$ref": "#/$defs/predicateExpression"
+        },
+        "mutation": {
+          "enum": ["insert", "update", "delete"]
+        },
+        "before": {
+          "$ref": "#/$defs/predicateProofRow"
+        },
+        "after": {
+          "$ref": "#/$defs/predicateProofRow"
+        },
+        "explanation": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "predicateProofRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["matches", "row", "source"],
+      "properties": {
+        "matches": {
+          "type": "boolean"
+        },
+        "row": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/jsonValue"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source": {
+          "enum": ["returnedRows", "rowBefore", "fields", "rowAfter", "delete", "none"]
         }
       }
     },

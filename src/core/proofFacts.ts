@@ -41,6 +41,7 @@ export function buildProofEdgeFact(edge: DependencyEdge): ProofEdgeFact {
     const mutation = edge.mutation ?? edge.predicateChange?.mutation ?? "update";
     return withSummary({
       ...base,
+      predicateProof: edge.predicateProof,
       sourceFact: `${edge.from} predicate-read ${edge.table ?? "table"} where ${predicate} ${before} row ${row}`,
       targetFact: `${edge.to} ${mutation} changed row ${row} so it ${after} the predicate, creating a predicate-read/write anti-dependency`,
     });

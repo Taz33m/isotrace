@@ -827,6 +827,31 @@ h1 {
   display: block;
 }
 
+.predicateProofBlock {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  display: grid;
+  gap: 5px;
+  grid-column: 1 / -1;
+  padding: 9px 10px;
+}
+
+.predicateProofBlock strong {
+  color: #0f172a;
+}
+
+.predicateProofBlock code {
+  background: #f1f5f9;
+  border-radius: 5px;
+  padding: 1px 4px;
+}
+
+.predicateProofBlock small,
+.cycleProofMeta {
+  color: #64748b;
+}
+
 .edgeTable {
   max-height: 330px;
   overflow: auto;

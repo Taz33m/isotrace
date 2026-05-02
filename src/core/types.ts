@@ -93,6 +93,24 @@ export interface PredicateMembershipChange {
   mutation?: WriteMutation;
 }
 
+export type PredicateProofSource = "returnedRows" | "rowBefore" | "fields" | "rowAfter" | "delete" | "none";
+
+export interface PredicateProofRowEvidence {
+  matches: boolean;
+  row: Record<string, JsonValue> | null;
+  source: PredicateProofSource;
+}
+
+export interface PredicateProof {
+  table: string;
+  rowId: JsonValue;
+  predicate: PredicateExpression;
+  mutation: WriteMutation;
+  before: PredicateProofRowEvidence;
+  after: PredicateProofRowEvidence;
+  explanation: string;
+}
+
 export interface DependencyEdge {
   id: string;
   from: string;
@@ -104,6 +122,7 @@ export interface DependencyEdge {
   rowId?: JsonValue;
   predicate?: PredicateExpression;
   predicateChange?: PredicateMembershipChange;
+  predicateProof?: PredicateProof;
   mutation?: WriteMutation;
   reason: string;
 }
@@ -164,6 +183,7 @@ export interface ProofEdgeFact {
   targetTransaction: string;
   sourceFact: string;
   targetFact: string;
+  predicateProof?: PredicateProof;
   summary: string;
 }
 
