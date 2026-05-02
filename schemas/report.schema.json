@@ -282,7 +282,7 @@
     "verdictEvidence": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "edgeIds", "edgeKinds", "pattern"],
+      "required": ["kind", "edgeIds", "edgeKinds", "proofEdges", "pattern"],
       "properties": {
         "kind": {
           "enum": ["cycle", "edge-pattern", "validation-note", "none"]
@@ -302,7 +302,47 @@
             "enum": ["ww", "wr", "rw", "rt"]
           }
         },
+        "proofEdges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/proofEdgeFact"
+          }
+        },
         "pattern": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "proofEdgeFact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["edgeId", "edgeKind", "sourceTransaction", "targetTransaction", "sourceFact", "targetFact", "summary"],
+      "properties": {
+        "edgeId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "edgeKind": {
+          "enum": ["ww", "wr", "rw", "rt"]
+        },
+        "sourceTransaction": {
+          "type": "string",
+          "minLength": 1
+        },
+        "targetTransaction": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sourceFact": {
+          "type": "string",
+          "minLength": 1
+        },
+        "targetFact": {
+          "type": "string",
+          "minLength": 1
+        },
+        "summary": {
           "type": "string",
           "minLength": 1
         }

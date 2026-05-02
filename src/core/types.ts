@@ -84,7 +84,18 @@ export interface IsolationVerdictEvidence {
   cycleId?: string;
   edgeIds: string[];
   edgeKinds: EdgeKind[];
+  proofEdges: ProofEdgeFact[];
   pattern: string;
+}
+
+export interface ProofEdgeFact {
+  edgeId: string;
+  edgeKind: EdgeKind;
+  sourceTransaction: string;
+  targetTransaction: string;
+  sourceFact: string;
+  targetFact: string;
+  summary: string;
 }
 
 export interface IsolationVerdict {

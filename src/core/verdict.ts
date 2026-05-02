@@ -1,4 +1,5 @@
 import type { CycleWitness, IsolationMode, IsolationVerdict } from "./types";
+import { buildProofEdgeFact } from "./proofFacts";
 
 export function buildIsolationVerdict(options: {
   mode: IsolationMode;
@@ -123,6 +124,7 @@ function abortedIgnoredVerdict(mode: IsolationMode, ignoredTransactions: string[
       kind: "validation-note",
       edgeIds: [],
       edgeKinds: [],
+      proofEdges: [],
       pattern: "aborted transactions are excluded from committed-version order",
     },
     summary: "Valid committed history; aborted transaction did not participate in the graph.",
@@ -148,6 +150,7 @@ function validVerdict(mode: IsolationMode): IsolationVerdict {
       kind: "none",
       edgeIds: [],
       edgeKinds: [],
+      proofEdges: [],
       pattern: "no dependency cycle found",
     },
     summary: mode === "strict-serializable" ? "No serializability or strict-serializability violation found." : "No serializability violation found.",
@@ -182,6 +185,7 @@ function evidenceFromCycle(cycle: CycleWitness, pattern: string): IsolationVerdi
     cycleId: cycle.id,
     edgeIds: proofEdges.map((edge) => edge.id),
     edgeKinds: proofEdges.map((edge) => edge.kind),
+    proofEdges: proofEdges.map(buildProofEdgeFact),
     pattern,
   };
 }
