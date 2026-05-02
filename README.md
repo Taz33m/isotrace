@@ -96,10 +96,11 @@ npm run build
 npm run demo
 npm run demo:strict
 npm run bench
+npm run bench -- --json
 npm run analyze -- fixtures/write_skew_doctors.json --json
 ```
 
-`npm run check` runs typecheck, tests, production build, and the benchmark smoke. The `--json` CLI mode echoes the full input history in its output, so do not use it for histories containing secrets unless printing those values is acceptable.
+`npm run check` runs typecheck, tests, production build, and the benchmark smoke. The `--json` CLI mode emits a report envelope with schema version, tool version, command, runtime, git state, input byte count, input SHA-256, and the full analysis result. That result includes the full input history, so do not use it for histories containing secrets unless printing those values is acceptable.
 
 ## Test And Benchmark Proof
 
@@ -115,6 +116,8 @@ The test suite covers:
 - graph SCC and cycle extraction
 
 The benchmark uses generated serial histories to smoke-test graph construction and cycle search at increasing sizes. The reported wall-clock timings are local smoke measurements, not production performance claims.
+
+`npm run bench -- --json` emits the same benchmark rows inside a provenance envelope with benchmark settings. The timing rows are still smoke measurements; the provenance exists so a run can be attributed and reproduced, not to imply hardware-independent performance.
 
 ## Limitations
 
@@ -136,4 +139,4 @@ IsoTrace is not a dashboard around fake telemetry. The core artifact is a determ
 - JSON Schema for fixture validation and editor support.
 - More cycle witnesses per SCC when multiple independent causes exist.
 - Predicate-read and range-read modeling, if the input format grows enough to support it honestly.
-- More stable benchmark methodology with warmups and environment provenance.
+- More stable benchmark methodology with warmups and repeated samples.

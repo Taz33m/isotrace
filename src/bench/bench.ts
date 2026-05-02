@@ -1,5 +1,6 @@
 import { performance } from "node:perf_hooks";
 import { analyzeHistory } from "../core/analyzer";
+import { makeBenchmarkReport } from "../core/report";
 import type { History, Transaction } from "../core/types";
 
 interface BenchRow {
@@ -77,8 +78,23 @@ function runBench(): BenchRow[] {
 }
 
 const rows = runBench();
-console.log("IsoTrace benchmark: generated serial histories");
-console.log("transactions\tkeys\tedges\tcycles\tduration_ms");
-for (const row of rows) {
-  console.log(`${row.transactions}\t${row.keys}\t${row.edges}\t${row.cycles}\t${row.durationMs.toFixed(3)}`);
+if (process.argv.includes("--json")) {
+  console.log(
+    JSON.stringify(
+      makeBenchmarkReport({
+        argv: process.argv.slice(2),
+        cwd: process.cwd(),
+        sizes,
+        rows,
+      }),
+      null,
+      2,
+    ),
+  );
+} else {
+  console.log("IsoTrace benchmark: generated serial histories");
+  console.log("transactions\tkeys\tedges\tcycles\tduration_ms");
+  for (const row of rows) {
+    console.log(`${row.transactions}\t${row.keys}\t${row.edges}\t${row.cycles}\t${row.durationMs.toFixed(3)}`);
+  }
 }

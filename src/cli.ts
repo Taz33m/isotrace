@@ -2,6 +2,7 @@ import { readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { analyzeHistory } from "./core/analyzer";
 import { explainResult } from "./core/explain";
+import { makeAnalysisReport } from "./core/report";
 import type { History } from "./core/types";
 import { HistoryValidationError } from "./core/validate";
 
@@ -70,10 +71,23 @@ function main(): void {
       throw new HistoryValidationError(`${args.file} is ${stats.size} bytes; max supported history size is ${MAX_HISTORY_BYTES} bytes`);
     }
 
-    const history = JSON.parse(readFileSync(filePath, "utf8")) as History;
+    const inputBytes = readFileSync(filePath);
+    const history = JSON.parse(inputBytes.toString("utf8")) as History;
     const result = analyzeHistory(history, { strict: args.strict });
     if (args.json) {
-      console.log(JSON.stringify(result, null, 2));
+      console.log(
+        JSON.stringify(
+          makeAnalysisReport({
+            argv: process.argv.slice(2),
+            cwd: process.cwd(),
+            inputPath: filePath,
+            inputBytes,
+            result,
+          }),
+          null,
+          2,
+        ),
+      );
     } else {
       console.log(explainResult(result));
     }
