@@ -27,6 +27,7 @@ describe("CLI contract", () => {
     expect(result.stderr).toBe("");
     expect(result.stdout).toContain("Result: OK");
     expect(result.stdout).toContain("Anomaly: Valid serial history [valid-serial-history]");
+    expect(result.stdout).toContain("Order witness: T0 -> T1 -> T2");
   });
 
   it("keeps JSON reports parseable even when --fail-on-violation exits 2", () => {

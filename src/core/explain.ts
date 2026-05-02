@@ -52,6 +52,10 @@ export function explainResult(result: AnalysisResult): string {
   } else {
     lines.push("");
     lines.push("No dependency cycle was found in this explicit-history model.");
+    if (result.orderWitness) {
+      lines.push(`Order witness: ${result.orderWitness.transactions.join(" -> ")}`);
+      lines.push(result.orderWitness.summary);
+    }
   }
 
   return lines.join("\n");

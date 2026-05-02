@@ -65,6 +65,14 @@ export interface CycleWitness {
   transactions: string[];
 }
 
+export interface OrderWitness {
+  kind: "topological-order";
+  mode: IsolationMode;
+  transactions: string[];
+  edgeIds: string[];
+  summary: string;
+}
+
 export type IsolationCheckStatus = "pass" | "fail" | "not-evaluated";
 
 export type AnomalyClass =
@@ -121,6 +129,7 @@ export interface AnalysisResult {
   nodes: GraphNode[];
   edges: DependencyEdge[];
   cycles: CycleWitness[];
+  orderWitness: OrderWitness | null;
   ignoredTransactions: string[];
   kindCounts: Record<EdgeKind, number>;
   validationNotes: string[];

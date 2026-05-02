@@ -233,6 +233,7 @@ async function verifyWorkbench(page: Page, url: string): Promise<void> {
   await page.getByTestId("verdict-panel").filter({ hasText: "Valid serial history" }).waitFor({ state: "visible" });
   await page.getByTestId("verdict-panel").filter({ hasText: "valid-serial-history" }).waitFor({ state: "visible" });
   await page.getByText("No dependency cycle was found under serializable").waitFor({ state: "visible" });
+  await page.getByTestId("order-witness").filter({ hasText: "T0 -> T1 -> T2" }).waitFor({ state: "visible" });
 
   await page.getByTestId("scenario-write_skew_doctors").click();
   await page.getByRole("heading", { name: "write_skew_doctors" }).waitFor({ state: "visible" });

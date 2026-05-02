@@ -17,7 +17,7 @@ The analyzer has to reconstruct several edge classes without inventing facts:
 - `rw`: a transaction read an older version before another transaction overwrote that key
 - `rt`: strict-serializability realtime order
 
-A cycle in these edges is the proof. The tool reports a representative cycle and the concrete read/write facts that created each edge.
+A cycle in these edges is the proof of a violation. For clean evaluated graphs, IsoTrace reports a deterministic topological transaction order that satisfies the dependency edges.
 
 IsoTrace also emits a conservative semantic verdict: serializable pass/fail, strict-serializable pass/fail/not-evaluated, anomaly label, implicated transactions, proof edge sequence, and bounded limitations. Supported labels are intentionally narrow: write skew, strict stale read, generic dependency cycle, valid serial history, and aborted write ignored. This is not full Elle compatibility or complete Adya anomaly coverage.
 

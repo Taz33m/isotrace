@@ -129,6 +129,7 @@
         "nodes",
         "edges",
         "cycles",
+        "orderWitness",
         "ignoredTransactions",
         "kindCounts",
         "validationNotes"
@@ -163,6 +164,16 @@
           "items": {
             "$ref": "#/$defs/cycle"
           }
+        },
+        "orderWitness": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/orderWitness"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "ignoredTransactions": {
           "type": "array",
@@ -434,6 +445,35 @@
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "orderWitness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "mode", "transactions", "edgeIds", "summary"],
+      "properties": {
+        "kind": {
+          "const": "topological-order"
+        },
+        "mode": {
+          "enum": ["serializable", "strict-serializable"]
+        },
+        "transactions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "edgeIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
         }
       }
     },

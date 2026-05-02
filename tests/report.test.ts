@@ -31,6 +31,7 @@ describe("report envelopes", () => {
     expect(report.input.bytes).toBe(inputBytes.byteLength);
     expect(report.input.sha256).toBe(sha256(inputBytes));
     expect(report.result.ok).toBe(true);
+    expect(report.result.orderWitness?.transactions).toEqual(["T0"]);
   });
 
   it("wraps benchmark rows with benchmark settings", () => {

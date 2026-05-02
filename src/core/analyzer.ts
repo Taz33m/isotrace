@@ -6,12 +6,13 @@ import type {
   GraphNode,
   History,
   IsolationMode,
+  OrderWitness,
   ReadOp,
   Transaction,
   WriteOp,
 } from "./types";
 import { formatJsonValue } from "./format";
-import { edgeSignature, findCycleInComponent, tarjanScc } from "./graph";
+import { edgeSignature, findCycleInComponent, tarjanScc, topologicalOrder } from "./graph";
 import { HistoryValidationError, normalizeHistory } from "./validate";
 import { buildIsolationVerdict } from "./verdict";
 
@@ -43,6 +44,7 @@ export function analyzeHistory(history: History, options: AnalyzeOptions = {}): 
   const edges = buildEdges(normalized.committed, versions, mode);
   const cycles = findCycles(nodes.map((node) => node.id), edges);
   const serialCycles = findCycles(nodes.map((node) => node.id), edges.filter((edge) => edge.kind !== "rt"));
+  const orderWitness = buildOrderWitness(mode, nodes, edges, cycles);
   const kindCounts = countKinds(edges);
   const ignoredTransactions = normalized.ignored.map((tx) => tx.id);
   const verdict = buildIsolationVerdict({
@@ -60,6 +62,7 @@ export function analyzeHistory(history: History, options: AnalyzeOptions = {}): 
     nodes,
     edges,
     cycles,
+    orderWitness,
     ignoredTransactions,
     kindCounts,
     validationNotes: normalized.notes,
@@ -83,6 +86,22 @@ function buildNodes(transactions: Transaction[]): GraphNode[] {
     commit: tx.commit,
     opCount: tx.ops.length,
   }));
+}
+
+function buildOrderWitness(mode: IsolationMode, nodes: GraphNode[], edges: DependencyEdge[], cycles: CycleWitness[]): OrderWitness | null {
+  if (cycles.length > 0) return null;
+  const transactions = topologicalOrder(
+    nodes.map((node) => node.id),
+    edges,
+  );
+  if (!transactions) return null;
+  return {
+    kind: "topological-order",
+    mode,
+    transactions,
+    edgeIds: edges.map((edge) => edge.id),
+    summary: `A deterministic topological order satisfies all ${edges.length} dependency edges under ${mode}.`,
+  };
 }
 
 function buildVersionIndex(transactions: Transaction[], order: Map<string, number>): Map<string, VersionWrite[]> {

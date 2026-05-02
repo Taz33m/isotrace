@@ -76,6 +76,39 @@ export function edgeSignature(edge: Omit<DependencyEdge, "id">): string {
   return [edge.kind, edge.from, edge.to, edge.key ?? "", edge.reason].join("|");
 }
 
+export function topologicalOrder(nodes: string[], edges: DependencyEdge[]): string[] | null {
+  const uniqueNodes = Array.from(new Set(nodes)).sort((a, b) => a.localeCompare(b));
+  const incomingCount = new Map(uniqueNodes.map((node) => [node, 0]));
+  const outgoing = new Map<string, string[]>();
+
+  for (const edge of edges) {
+    if (!incomingCount.has(edge.from) || !incomingCount.has(edge.to)) continue;
+    incomingCount.set(edge.to, (incomingCount.get(edge.to) ?? 0) + 1);
+    const bucket = outgoing.get(edge.from) ?? [];
+    bucket.push(edge.to);
+    outgoing.set(edge.from, bucket);
+  }
+  for (const bucket of outgoing.values()) {
+    bucket.sort((a, b) => a.localeCompare(b));
+  }
+
+  const ready = uniqueNodes.filter((node) => incomingCount.get(node) === 0);
+  const order: string[] = [];
+  while (ready.length > 0) {
+    ready.sort((a, b) => a.localeCompare(b));
+    const node = ready.shift();
+    if (!node) break;
+    order.push(node);
+    for (const next of outgoing.get(node) ?? []) {
+      const count = (incomingCount.get(next) ?? 0) - 1;
+      incomingCount.set(next, count);
+      if (count === 0) ready.push(next);
+    }
+  }
+
+  return order.length === uniqueNodes.length ? order : null;
+}
+
 function dfs(
   node: string,
   visited: Set<string>,

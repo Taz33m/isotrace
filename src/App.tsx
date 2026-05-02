@@ -544,6 +544,13 @@ function CycleProof({
       <div className="proofEmpty">
         <CheckCircle2 size={26} />
         <p>No dependency cycle was found under {result.mode}. The graph still includes dependency edges so the absence of a cycle is inspectable.</p>
+        {result.orderWitness ? (
+          <div className="orderWitness" data-testid="order-witness">
+            <span>Order witness</span>
+            <code>{result.orderWitness.transactions.join(" -> ")}</code>
+            <small>{result.orderWitness.summary}</small>
+          </div>
+        ) : null}
       </div>
     );
   }

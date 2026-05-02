@@ -21,6 +21,9 @@ describe("IsoTrace analyzer", () => {
     expect(result.ok).toBe(true);
     expect(result.cycles).toHaveLength(0);
     expect(result.kindCounts.rw).toBeGreaterThan(0);
+    expect(result.orderWitness?.transactions).toEqual(["T0", "T1", "T2"]);
+    expect(result.orderWitness?.edgeIds).toHaveLength(result.edges.length);
+    expectOrderSatisfiesEdges(result.orderWitness?.transactions ?? [], result.edges.map((edge) => [edge.from, edge.to]));
   });
 
   it("distinguishes serializable from strict-serializable stale reads", () => {
@@ -39,6 +42,7 @@ describe("IsoTrace analyzer", () => {
     expect(result.ok).toBe(true);
     expect(result.ignoredTransactions).toEqual(["T1"]);
     expect(result.edges.some((edge) => edge.from === "T1" || edge.to === "T1")).toBe(false);
+    expect(result.orderWitness?.transactions).toEqual(["T0", "T2"]);
   });
 
   it("rejects reads from writers that do not write the key", () => {
@@ -223,3 +227,10 @@ describe("IsoTrace analyzer", () => {
     expect(() => analyzeHistory(badTime)).toThrow(/begin 3 is after commit 1/);
   });
 });
+
+function expectOrderSatisfiesEdges(order: string[], edges: Array<[string, string]>): void {
+  const positions = new Map(order.map((txId, index) => [txId, index]));
+  for (const [from, to] of edges) {
+    expect(positions.get(from)!).toBeLessThan(positions.get(to)!);
+  }
+}

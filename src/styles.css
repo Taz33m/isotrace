@@ -670,8 +670,39 @@ h1 {
   align-items: flex-start;
   color: #166534;
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   line-height: 1.5;
+}
+
+.orderWitness {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 8px;
+  color: #14532d;
+  display: grid;
+  flex-basis: 100%;
+  gap: 5px;
+  padding: 10px 12px;
+}
+
+.orderWitness span {
+  color: #047857;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.orderWitness code {
+  color: #052e16;
+  font-size: 0.86rem;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.orderWitness small {
+  color: #166534;
+  line-height: 1.4;
 }
 
 .notesBox {

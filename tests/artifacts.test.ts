@@ -92,6 +92,7 @@ describe("portable artifacts", () => {
     const report = validateAnalysisReportArtifact(JSON.parse(output) as unknown);
     expect(report.input.path).toContain("examples/valid_history.json");
     expect(report.result.history.name).toBe("portable_valid_history");
+    expect(report.result.orderWitness?.kind).toBe("topological-order");
   });
 
   it("reports deterministic schema errors for invalid analyzer reports", () => {
